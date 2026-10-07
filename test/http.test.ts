@@ -48,3 +48,23 @@ test('operator routes reject foreign hosts, cross-origin requests and invalid bo
     await app.close();
   }
 });
+
+test('fixture failures return a generic response without leaking internal details', async () => {
+  const app = await createApp({
+    database: ':memory:',
+    fixtureBase: 'http://127.0.0.1:1',
+    origin: 'http://127.0.0.1:3012',
+  });
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/fixture/check',
+      headers: { host: '127.0.0.1:3012', origin: 'http://127.0.0.1:3012' },
+      payload: { scenario: 'valid' },
+    });
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json(), { error: 'Kontrollen kunne ikke fullføres. Prøv igjen senere.' });
+  } finally {
+    await app.close();
+  }
+});

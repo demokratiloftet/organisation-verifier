@@ -14,6 +14,8 @@ Dette verifiserer **domenetilknytning**, ikke en persons juridiske fullmakt. Pub
 Krever Docker Compose, Node **24.17** og pnpm **11.8**.
 
 ```sh
+gh repo clone demokratiloftet/organisation-verifier
+cd organisation-verifier
 corepack enable
 pnpm install --frozen-lockfile
 pnpm demo:up
@@ -43,3 +45,16 @@ Vanlig TypeScript, Fastify, SQLite og atproto-SDK. Ingen frontend-rammeverk er n
 Demoen er et første snitt gjennom flyten. Full registerimport, kontinuerlig overvåking, offentlig utsteder og produksjonsdrift er egne, gjenstående leveranser.
 
 ![Kontrollgrunnlag og publisering i demoen](docs/media/demo-overview.png)
+
+## Sikkerhet og vedlikehold
+
+CI kontrollerer formatering, typer, tester, bygg, ekte PDS-integrasjon,
+avhengigheter i både app og fixture, og hele Git-historikken for hemmeligheter.
+Actions er låst til commit-SHA-er. Se [sikkerhetspolicy](SECURITY.md).
+Fixture er oppdatert til dev-env 0.6.14 med samme sikkerhetsoverstyringer som den
+isolerte `local-sandbox`; bare testede PDS/PLC-funksjoner skal brukes.
+
+Operatørappen er tilgjengelig på loopback/SSH og skal ikke publiseres uten en
+egen autentiserings- og tilgangsmodell. Live-oppslag er kun lesing. Nettverksfeil
+skal aldri gi en ny positiv verifikasjon. Løpende VPS-oppdateringer er beskrevet i
+[driftsveiledningen](docs/operations.md).

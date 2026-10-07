@@ -4,6 +4,6 @@
   "type": "module",
   "packageManager": "pnpm@11.8.0",
   "dependencies": {
-    "@atproto/dev-env": "0.6.7"
+    "@atproto/dev-env": "0.6.14"
   }
 }

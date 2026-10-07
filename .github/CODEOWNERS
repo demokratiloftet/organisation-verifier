@@ -1,0 +1,4 @@
+# Review security-sensitive deployment and dependency changes.
+/.github/ @edvinstava
+/deploy/ @edvinstava
+/Dockerfile* @edvinstava

@@ -7,3 +7,29 @@ allowBuilds:
   core-js: false
   protobufjs: true
   sharp: true
+
+minimumReleaseAgeExclude:
+  - '@atproto-labs/opentelemetry-node@0.3.1'
+  - '@atproto/api@0.24.0'
+  - '@atproto/bsky@0.1.4'
+  - '@atproto/bsync@0.1.3'
+  - '@atproto/dev-env@0.6.14'
+  - '@atproto/ozone@0.6.0'
+  - '@atproto/pds@0.5.38'
+  - nodemailer@10.0.16
+
+overrides:
+  '@fastify/busboy': '3.2.2'
+  'sharp': '0.35.5'
+  'kysely': '0.29.6'
+  'nodemailer': '10.0.16'
+  'undici@<6.28.1': '6.29.0'
+  '@opentelemetry/propagator-jaeger': '2.12.0'
+  '@opentelemetry/instrumentation-cassandra-driver': '0.66.0'
+  '@opentelemetry/instrumentation-knex': '0.65.0'
+  '@opentelemetry/instrumentation-mongoose': '0.67.0'
+  '@opentelemetry/instrumentation-mysql': '0.67.0'
+  '@opentelemetry/instrumentation-mysql2': '0.67.0'
+  '@opentelemetry/instrumentation-oracledb': '0.46.0'
+  '@opentelemetry/instrumentation-pg': '0.73.0'
+  '@opentelemetry/instrumentation-tedious': '0.40.0'

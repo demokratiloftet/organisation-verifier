@@ -113,7 +113,10 @@ export async function createApp(options: AppOptions) {
   );
   app.setErrorHandler((error, _request, reply) => {
     const err = error as Error & { statusCode?: number };
-    reply.code(err.statusCode ?? 500).send({ error: err.message });
+    const status = err.statusCode ?? 500;
+    reply
+      .code(status)
+      .send({ error: status < 500 ? err.message : 'Kontrollen kunne ikke fullføres. Prøv igjen senere.' });
   });
   return app;
 }
