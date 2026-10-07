@@ -1,0 +1,51 @@
+name: organisation-verifier
+services:
+  app:
+    build: .
+    init: true
+    restart: unless-stopped
+    ports: ['127.0.0.1:3012:3012']
+    environment:
+      FIXTURE_URL: http://fixture:2584
+      APP_ORIGIN: http://127.0.0.1:3012
+    volumes: ['verifier-data:/data']
+    networks: [default, fixture]
+    depends_on:
+      fixture: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3012/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+  fixture:
+    build: ./fixture
+    init: true
+    restart: unless-stopped
+    networks: [fixture]
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:2584/state').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+networks:
+  fixture:
+    internal: true
+volumes:
+  verifier-data:

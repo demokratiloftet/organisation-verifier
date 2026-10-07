@@ -1,0 +1,9 @@
+allowBuilds:
+  better-sqlite3: true
+  isolated-vm: true
+  bufferutil: true
+  utf-8-validate: true
+  esbuild: true
+  core-js: false
+  protobufjs: true
+  sharp: true

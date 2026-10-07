@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+fixture/pnpm-lock.yaml
+dist
+data
+docs/media
+.runtime

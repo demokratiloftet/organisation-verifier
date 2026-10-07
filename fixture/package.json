@@ -1,0 +1,9 @@
+{
+  "name": "verifier-isolated-fixture",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "dependencies": {
+    "@atproto/dev-env": "0.6.7"
+  }
+}

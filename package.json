@@ -1,0 +1,37 @@
+{
+  "name": "@demokratiloftet/organisation-verifier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=24.17 <25"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/src/main.js",
+    "build": "tsc",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "demo:up": "docker compose up -d --build --wait",
+    "demo:down": "docker compose down",
+    "test:integration": "docker compose exec -T app node dist/test/integration.js"
+  },
+  "dependencies": {
+    "@atproto-labs/fetch-node": "0.4.0",
+    "@atproto/api": "0.24.0",
+    "@atproto/common": "0.8.5",
+    "@atproto/identity": "0.5.16",
+    "@atproto/syntax": "0.7.6",
+    "fastify": "5.12.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
