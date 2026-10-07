@@ -18,7 +18,8 @@
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "demo:up": "docker compose up -d --build --wait",
     "demo:down": "docker compose down",
-    "test:integration": "docker compose exec -T app node dist/test/integration.js"
+    "test:integration": "docker compose exec -T app node dist/test/integration.js",
+    "test:isolation": "node test/isolation.mjs"
   },
   "dependencies": {
     "@atproto-labs/fetch-node": "0.4.0",

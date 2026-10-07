@@ -4,6 +4,8 @@ services:
     build: .
     init: true
     restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=512m,mode=1777']
     ports: ['127.0.0.1:3012:3012']
     environment:
       FIXTURE_URL: http://fixture:2584
@@ -29,7 +31,11 @@ services:
     build: ./fixture
     init: true
     restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=512m,mode=1777']
     networks: [fixture]
+    # Docker service discovery remains available; external DNS has no forwarder.
+    dns: [127.0.0.1]
     healthcheck:
       test:
         [

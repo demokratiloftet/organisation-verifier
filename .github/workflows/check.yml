@@ -29,5 +29,6 @@ jobs:
       - run: pnpm check
       - run: pnpm demo:up
       - run: pnpm test:integration
+      - run: pnpm test:isolation
       - if: always()
         run: docker compose down
