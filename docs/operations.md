@@ -33,6 +33,13 @@ ssh -N -L 127.0.0.1:3012:127.0.0.1:3012 root@187.124.129.149
 
 La SSH-terminalen stå åpen. Åpne **http://127.0.0.1:3012**. SSH er tilgangskontrollen for denne operatørdemoen; det finnes ingen innlogging i appen. Ikke bind porten til `0.0.0.0` eller sett en offentlig proxy foran operatørendepunktene.
 
+Under oppsettet er det startet en bakgrunnstunnel fra denne arbeidsmaskinen med kontrollsocket `.runtime/vps.sock`. Demo-adressen peker dermed på VPS-en. Før du starter appen lokalt igjen, avslutt tunnelen fra repo-mappen:
+
+```sh
+ssh -S .runtime/vps.sock -O exit root@187.124.129.149
+pnpm demo:up
+```
+
 På VPS-en:
 
 ```sh

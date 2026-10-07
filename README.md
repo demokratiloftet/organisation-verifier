@@ -36,6 +36,8 @@ pnpm demo:down         # stopper demoen; beholder SQLite-volumet
 
 [Arkitektur og figurer](docs/architecture.md) · [Beslutninger og delegerbare oppgaver](docs/roadmap.md) · [VPS og drift](docs/operations.md)
 
+Utførte kontroller er beskrevet i [valideringsloggen](docs/validation.md).
+
 Vanlig TypeScript, Fastify, SQLite og atproto-SDK. Ingen frontend-rammeverk er nødvendig for dette kontrollpanelet. Policy, kilder, lagring og publisering ligger i hver sin modul under `src/`.
 
 Demoen er et første snitt gjennom flyten. Full registerimport, kontinuerlig overvåking, offentlig utsteder og produksjonsdrift er egne, gjenstående leveranser.
