@@ -60,3 +60,15 @@ For oppdatering kan en godkjent commit eksporteres med `git archive` og overfør
 - En feil i et PDS-kall lagres som publiseringsfeil; kjør kontrollen på nytt for avstemming ved samme nøkkel. Det er ingen automatisk scheduler i denne demoversjonen.
 
 Dette er et disponibelt testnett, ikke en backup-/migrasjonsløsning for en produksjons-PDS. Produksjonsbackup, overvåking, retensjon og rollestyrt operatørtilgang er egne oppgaver.
+
+## Automatisk appoppdatering
+
+Etter grønne `Check`-kontroller på `main` kan GitHub Actions oppdatere bare
+app-containeren via den begrensede SSH-mottakeren i infrastrukturrepoet.
+`DEMO_DEPLOY_ENABLED=true` aktiverer dette. Workflow-tokenet har bare lesetilgang
+til dette repoet og lagres ikke på VPS-en. SSH-nøkkelen har ingen vanlig shell.
+
+SQLite-volumet beholdes. Et mislykket helsesjekk bytter tilbake til forrige image.
+Fixture, lagringsskjema og Compose-endringer krever separat driftsgjennomgang;
+de rulles ikke automatisk ut. Fixture er disponibel og lager nye DIDs ved omstart.
+Se [felles driftsveiledning](https://github.com/demokratiloftet/server-infrastructure/blob/master/deploy/README.md).

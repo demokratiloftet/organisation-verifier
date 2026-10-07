@@ -32,3 +32,34 @@ jobs:
       - run: pnpm test:isolation
       - if: always()
         run: docker compose down
+  deploy:
+    name: Deploy demo
+    needs: check
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main' && vars.DEMO_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: demo-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Deploy checked commit through restricted SSH command
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+          DEPLOY_KEY: ${{ secrets.DEMO_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEMO_DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.DEMO_DEPLOY_HOST }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY" && test -n "$DEPLOY_KNOWN_HOSTS" && test -n "$DEPLOY_HOST"
+          deploy_tmp=$(mktemp -d)
+          trap 'rm -rf "$deploy_tmp"' EXIT
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > "$deploy_tmp/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$deploy_tmp/known_hosts"
+          printf '%s\n' "$GH_READ_TOKEN" | ssh -F /dev/null -i "$deploy_tmp/key" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$deploy_tmp/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+            "root@$DEPLOY_HOST" "deploy $DEPLOY_SHA"
