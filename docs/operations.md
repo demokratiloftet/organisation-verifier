@@ -49,7 +49,17 @@ docker compose exec -T app node dist/test/integration.js
 docker compose logs --tail=50 app fixture
 ```
 
-For oppdatering kan en godkjent commit eksporteres med `git archive` og overføres til denne separate katalogen; bygg deretter med `docker compose up -d --build --wait`. Ikke kopier lokale data, miljøfiler eller node_modules. Et normalt appbygg lar fixture-containeren fortsette å kjøre; en endring i fixture-image eller full nedstenging oppretter et nytt testnett neste gang.
+Vanlige appoppdateringer deployes automatisk etter grønne kontroller på `main`.
+Den kjørende koden bygges fra en separat release under
+`/var/lib/loftet-deploy/organisation-verifier/releases/`; `current.json` i
+deploy-katalogen angir commit og image. `/root/organisation-verifier` eier fortsatt
+godkjent Compose-oppsett. Ikke bygg denne eldre kildekopien på nytt for en vanlig
+appoppdatering.
+
+Fixture- eller Compose-endringer krever en separat driftsutrulling med automatisk
+deploy satt på pause, backup og gjennomgått kildekode. Ikke kopier lokale data,
+miljøfiler eller node_modules. En endring i fixture-image eller full nedstenging
+oppretter et nytt testnett neste gang.
 
 ## Tilstand og restart
 
@@ -63,12 +73,12 @@ Dette er et disponibelt testnett, ikke en backup-/migrasjonsløsning for en prod
 
 ## Automatisk appoppdatering
 
-Etter grønne `Check`-kontroller på `main` kan GitHub Actions oppdatere bare
+Etter grønne `Check`-kontroller på `main` oppdaterer GitHub Actions bare
 app-containeren via den begrensede SSH-mottakeren i infrastrukturrepoet.
-`DEMO_DEPLOY_ENABLED=true` aktiverer dette. Workflow-tokenet har bare lesetilgang
+`DEMO_DEPLOY_ENABLED=true` er aktivert og testet på VPS-en. Workflow-tokenet har bare lesetilgang
 til dette repoet og lagres ikke på VPS-en. SSH-nøkkelen har ingen vanlig shell.
 
-SQLite-volumet beholdes. Et mislykket helsesjekk bytter tilbake til forrige image.
+SQLite-volumet beholdes. En mislykket helsesjekk bytter tilbake til forrige image.
 Fixture, lagringsskjema og Compose-endringer krever separat driftsgjennomgang;
 de rulles ikke automatisk ut. Fixture er disponibel og lager nye DIDs ved omstart.
 Se [felles driftsveiledning](https://github.com/demokratiloftet/server-infrastructure/blob/master/deploy/README.md).
