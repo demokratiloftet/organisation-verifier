@@ -8,18 +8,20 @@
     "node": ">=24.17 <25"
   },
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "pnpm build && tsx watch src/main.ts",
     "start": "node dist/src/main.js",
-    "build": "tsc",
+    "build": "tsc && node scripts/assets.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts",
+    "test": "node --test dist/test/*.test.js",
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "demo:up": "docker compose up -d --build --wait",
     "demo:down": "docker compose down",
     "test:integration": "docker compose exec -T app node dist/test/integration.js",
-    "test:isolation": "node test/isolation.mjs"
+    "test:isolation": "node dist/test/isolation.js",
+    "pretest": "pnpm build",
+    "pretest:isolation": "pnpm build"
   },
   "dependencies": {
     "@atproto-labs/fetch-node": "0.4.0",
@@ -30,7 +32,7 @@
     "fastify": "5.12.5"
   },
   "devDependencies": {
-    "@types/node": "^24.19.1",
+    "@types/node": "24.19.1",
     "prettier": "3.9.9",
     "tsx": "4.23.15",
     "typescript": "7.0.2"

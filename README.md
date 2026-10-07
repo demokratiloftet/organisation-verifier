@@ -40,7 +40,13 @@ pnpm demo:down         # stopper demoen; beholder SQLite-volumet
 
 Utførte kontroller er beskrevet i [valideringsloggen](docs/validation.md).
 
-Vanlig TypeScript, Fastify, SQLite og atproto-SDK. Ingen frontend-rammeverk er nødvendig for dette kontrollpanelet. Policy, kilder, lagring og publisering ligger i hver sin modul under `src/`.
+All vedlikeholdt applikasjonskode, nettleserkode, tester og fixture er strict TypeScript.
+`pnpm build` kompilerer til `dist/` og kopierer statiske sider dit. Begge
+containerbilder kjører kompilert JavaScript på låst Node 24.17.0 uten TypeScript-verktøy.
+Fixture kan typekontrolleres separat med `pnpm --dir fixture install --frozen-lockfile`
+og `pnpm --dir fixture typecheck`; CI gjør dette automatisk.
+
+Fastify, SQLite og atproto-SDK brukes. Ingen frontend-rammeverk er nødvendig for dette kontrollpanelet. Policy, kilder, lagring og publisering ligger i hver sin modul under `src/`.
 
 Demoen er et første snitt gjennom flyten. Full registerimport, kontinuerlig overvåking, offentlig utsteder og produksjonsdrift er egne, gjenstående leveranser.
 

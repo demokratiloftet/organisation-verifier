@@ -17,12 +17,18 @@ const network = await TestNetworkNoAppView.create({
     supportUrl: 'http://localhost:2583',
   },
 });
-const accounts = {};
+type FixtureAgent = ReturnType<typeof network.pds.getAgent>;
+const accounts = new Map<string, { agent: FixtureAgent; did: string; handle: string }>();
+function account(handle: string) {
+  const found = accounts.get(handle);
+  if (!found) throw new Error('Missing fixture account');
+  return found;
+}
 for (const [handle, displayName] of [
   ['issuer.test', 'Loftet testutsteder'],
   ['fjordverk.test', 'Fjordverk AS'],
   ['annen.test', 'En annen organisasjon'],
-]) {
+] as const) {
   const agent = network.pds.getAgent();
   const { data } = await agent.createAccount({
     handle,
@@ -35,13 +41,13 @@ for (const [handle, displayName] of [
     rkey: 'self',
     record: { $type: 'app.bsky.actor.profile', displayName },
   });
-  accounts[handle] = { agent, did: data.did, handle };
+  accounts.set(handle, { agent, did: data.did, handle });
 }
 let scenario = 'valid';
 const scenarios = ['valid', 'name_changed', 'website_changed', 'no_account', 'unavailable'];
 function state() {
   return {
-    issuer: { did: accounts['issuer.test'].did, handle: 'issuer.test' },
+    issuer: { did: account('issuer.test').did, handle: 'issuer.test' },
     scenario,
     organisation: {
       orgnr: '000000001',
@@ -68,12 +74,14 @@ const server = createServer(async (req, res) => {
         body += chunk;
         if (body.length > 1024) throw new Error('Too large');
       }
-      const next = JSON.parse(body).scenario;
-      if (!scenarios.includes(next)) {
+      const input: unknown = JSON.parse(body);
+      const next =
+        typeof input === 'object' && input !== null && 'scenario' in input ? input.scenario : undefined;
+      if (typeof next !== 'string' || !scenarios.includes(next)) {
         res.writeHead(400).end();
         return;
       }
-      const subject = accounts['fjordverk.test'];
+      const subject = account('fjordverk.test');
       await subject.agent.com.atproto.repo.putRecord({
         repo: subject.did,
         collection: 'app.bsky.actor.profile',

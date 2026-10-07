@@ -6,3 +6,5 @@ data/
 !.env.example
 .runtime/
 *.tsbuildinfo
+
+fixture/dist/

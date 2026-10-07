@@ -1,27 +1,41 @@
-const $ = (selector) => document.querySelector(selector);
-let mode = 'fixture';
-let state = { checks: [], publications: [] };
-const labels = {
+import type { Mode, Decision, SavedCheck } from '../src/domain.js';
+import type { Publication } from '../src/store.js';
+import type { FixtureState } from '../src/sources.js';
+interface State {
+  checks: SavedCheck[];
+  publications: Publication[];
+  network?: FixtureState;
+  busy?: boolean;
+}
+function element<T extends HTMLElement>(selector: string, constructor: { new (): T }): T {
+  const node = document.querySelector(selector);
+  if (!(node instanceof constructor)) throw new Error(`Missing page element: ${selector}`);
+  return node;
+}
+const $ = (selector: string) => element(selector, HTMLElement);
+let mode: Mode = 'fixture';
+let state: State = { checks: [], publications: [] };
+const labels: Record<Decision, string> = {
   match: 'Samsvar',
   no_match: 'Ingen kobling',
   needs_review: 'Må vurderes',
   unavailable: 'Kunne ikke kontrolleres',
 };
-const publicationLabels = {
+const publicationLabels: Record<Publication['state'], string> = {
   pending: 'Venter på bekreftelse',
   published: 'Publisert',
   revoking: 'Tilbaketrekking pågår',
   revoked: 'Trukket tilbake',
 };
-const time = (value) =>
+const time = (value: string) =>
   new Intl.DateTimeFormat('nb-NO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(
     new Date(value),
   );
-const text = (selector, value) => {
+const text = (selector: string, value: string) => {
   $(selector).textContent = value;
 };
 
-function selectMode(next) {
+function selectMode(next: Mode) {
   mode = next;
   for (const name of ['fixture', 'live']) {
     $(`#${name}-panel`).hidden = name !== mode;
@@ -31,7 +45,7 @@ function selectMode(next) {
   $('#notice').hidden = true;
   render();
 }
-function field(label, value, mono = false) {
+function field(label: string, value: string | undefined, mono = false) {
   const item = document.createElement('div');
   const dt = document.createElement('span');
   dt.textContent = label;
@@ -106,7 +120,7 @@ function render() {
     );
   }
   text('#history-count', `${checks.length} kjøringer`);
-  const rows = checks.slice(0, 8).map((item) => {
+  const rows: HTMLElement[] = checks.slice(0, 8).map((item) => {
     const row = document.createElement('div');
     row.className = 'history-row';
     const timestamp = document.createElement('span');
@@ -134,11 +148,12 @@ function render() {
 async function refresh() {
   const response = await fetch('/api/state');
   if (!response.ok) throw new Error('Kunne ikke hente status.');
-  state = await response.json();
+  // Same-origin response produced by the typed server; rendered only as text.
+  state = (await response.json()) as State;
   render();
 }
-async function run(path, body) {
-  const buttons = document.querySelectorAll('form button');
+async function run(path: string, body: Record<string, string>) {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('form button');
   buttons.forEach((button) => {
     button.disabled = true;
   });
@@ -151,13 +166,18 @@ async function run(path, body) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error ?? 'Kontrollen feilet.');
+    const result: unknown = await response.json();
+    if (!response.ok)
+      throw new Error(
+        typeof result === 'object' && result !== null && 'error' in result && typeof result.error === 'string'
+          ? result.error
+          : 'Kontrollen feilet.',
+      );
     await refresh();
     text('#notice', 'Kontrollen er ferdig. Grunnlaget og resultatet er oppdatert.');
     $('#notice').className = 'success';
   } catch (error) {
-    text('#notice', error.message);
+    text('#notice', error instanceof Error ? error.message : 'Kontrollen feilet.');
     $('#notice').className = 'error';
   } finally {
     buttons.forEach((button) => {
@@ -169,13 +189,13 @@ $('#fixture-tab').addEventListener('click', () => selectMode('fixture'));
 $('#live-tab').addEventListener('click', () => selectMode('live'));
 $('#fixture-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  run('/api/fixture/check', { scenario: $('#scenario').value });
+  run('/api/fixture/check', { scenario: element('#scenario', HTMLSelectElement).value });
 });
 $('#live-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  run('/api/live/check', { orgnr: $('#orgnr').value });
+  run('/api/live/check', { orgnr: element('#orgnr', HTMLInputElement).value });
 });
 refresh().catch((error) => {
   $('#notice').hidden = false;
-  text('#notice', error.message);
+  text('#notice', error instanceof Error ? error.message : 'Kontrollen feilet.');
 });

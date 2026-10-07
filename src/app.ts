@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import Fastify from 'fastify';
 import type { Scenario } from './domain.js';
 import { FixtureSource, liveCheck } from './sources.js';
@@ -53,7 +52,13 @@ export async function createApp(options: AppOptions) {
     ['/style.css', 'style.css', 'text/css'],
   ] as const;
   for (const [route, file, type] of assets) {
-    const content = await readFile(join(process.cwd(), 'public', file), 'utf8');
+    const content = await readFile(
+      new URL(
+        import.meta.url.endsWith('.ts') ? '../dist/public/' + file : '../public/' + file,
+        import.meta.url,
+      ),
+      'utf8',
+    );
     app.get(route, async (_request, reply) => reply.type(type).send(content));
   }
   app.get('/health', async () => ({ ok: true }));

@@ -24,6 +24,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --audit-level=moderate
+      - run: pnpm --dir fixture install --frozen-lockfile
+      - run: pnpm --dir fixture typecheck
       - run: pnpm --dir fixture audit --audit-level=moderate
       - run: pnpm format:check
       - run: pnpm check
