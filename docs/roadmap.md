@@ -27,21 +27,23 @@ flowchart LR
   D --> E[5. Kontinuerlig register- og atproto-overvåking]
 ```
 
-## Konkrete oppgaver
+## Implementert 11. oktober 2026
 
-Estimatene er grove arbeidsstørrelser for utviklere som kjenner TypeScript. De er ikke leveringsløfter.
+Den opprinnelige arbeidslisten er nå implementert i kode. Dette endrer ikke Jira-status automatisk.
 
-| Oppgave / Jira-kobling                                | Startpunkt                               | Ferdig når                                                                                                                                                         | Avhengighet / størrelse        |
-| ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
-| **Avklar verifikasjonspolicy** — LOFT-79/87           | `domain.ts`, beslutningstabellen over    | Policyversjon, delte domener, navn, tilbakekalling og minst ti positive/negative eksempler er godkjent                                                             | Edvin + Kjetil; 0,5–1 dag      |
-| **Registeradapter og full import** — LOFT-77/80       | `fetchOrganisation`                      | Strøm `/enheter/lastned` med begrenset minne; idempotent upsert; gjenstartbar import; orgnr/host-indekser                                                          | Kan starte nå; 1–2 dager       |
-| **Jobber og publiseringskø** — LOFT-80/84             | `Store`, `Publisher`                     | Varige, dedupliserte jobber med lease/retry/backoff; intensjon og jobboppdatering atomisk; restarttest; begrenset parallellitet                                    | Kan starte nå; 1–2 dager       |
-| **Registerendringer** — LOFT-78                       | Registeradapter + jobber                 | `/oppdateringer/enheter` trigger nytt oppslag; cursor lagres først etter varig kølegging; inklusiv ID/overlapp håndteres; sletting testes                          | Import + kø; 1–2 dager         |
-| **Robust identitetsoppløsning** — LOFT-79/87          | `resolveIdentity`                        | Timeout skilles fra manglende handle; DID-endring, deaktivert konto, SSRF og navnendring testes; foreldredomene bruker PSL dersom godkjent                         | Policy; 1–2 dager              |
-| **Utstederkonto og offentlig publisher** — LOFT-82/83 | Egen implementasjon av `RecordRemote`    | Valgt konto og handle, secret-håndtering, plan/preview før writes, avgrenset pilotliste, gjennomført tilbakekalling; ingen fixture-data kan nå offentlig transport | Policy + konto; 1–2 dager      |
-| **Jetstream som trigger** — LOFT-81/84                | Samme kontrolljobb som registerendringer | Identity/account/profilhendelser kølegger ny autoritativ kontroll; cursor/replay/deduplisering og gjenoppretting etter fravær testes                               | Jobbkø + indekser; 1–2 dager   |
-| **Tilbakekalling og periodisk avstemming** — LOFT-88  | `Publisher.apply/reconcile`              | Varig tilbakekalling med samme URI; test av tapte svar; periodisk sjekk av faktisk PDS-innhold; slettede/deaktiverte kontoer; policy for gammelt grunnlag          | Policy + jobber; 1–2 dager     |
-| **Drift og operatørtilgang**                          | `compose.yaml`, `operations.md`          | Godkjent autentisering, tilgangsroller, backup/restore-test, migrasjoner, logger/målinger/varsling og begrenset offentlig lesevisning                              | Før offentlig pilot; 1–2 dager |
+| Jira-kobling | Implementert                                                                                              | Gjenstår før offentlig drift                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| LOFT-77/80   | Streamet snapshot-import, indekser, SHA-bundet gjenopptak og batchkø                                      | Kjør komplett import i valgt driftsmiljø; mål kapasitet                       |
+| LOFT-80/84   | SQLite-jobber med lease, deduplisering, retry og varig publiseringsintensjon                              | Overvåk køalder i drift                                                       |
+| LOFT-78      | Endringspoll, autoritative oppslag og atomisk cursor/jobb                                                 | Aktiver automatikk i miljøet                                                  |
+| LOFT-79/87   | Foreløpig versjonert policy, delte domener, toveis identitet, kontostatus og skille mellom feil og fravær | Edvin/Kjetil bekrefter foreløpige regler                                      |
+| LOFT-82/83   | SDK-publisher med fast issuer-DID/PDS, hemmelighet fra fil og eksplisitt pilotliste                       | Velg reell utsteder og positiv målkonto; gjennomfør offentlig pilot           |
+| LOFT-81/84   | Jetstream v2, varig cursor, reconnect, deduplisering, gap-rescan og DID-oppdagelse                        | Følg kildehelse og kø under faktisk trafikk                                   |
+| LOFT-88      | Automatisk tilbaketrekking, gjenforsøk, periodisk avstemming og syvdagers utløp ved uavklart kontroll     | Bekreft tidsvinduer og observer pilotens tilbaketrekking                      |
+| Drift        | Additiv migrasjon, online backup, restore-test, readiness og operatørstatus                               | Kontrollert utrulling, ekstern backup og tilkobling til eksisterende varsling |
+
+[Driftsoppsett og eksplisitte antakelser](automation.md) er gjeldende implementasjonsbeskrivelse.
+Vi har ikke aktivert offentlig publisering eller satt opp en betrodd Bluesky-utsteder.
 
 **Brreg API eller JSON?** Begge har en plass. Direkte `/enheter/{orgnr}` brukes ved kontroll. API-et har også `hjemmeside`-filter for kandidatsøk, men søketreff må kontrolleres mot hele enheten. Vanlig søkepaginering er begrenset til 10 000 resultater. For en full innledende gjennomgang er den daglige bulkfilen et fornuftig utgangspunkt; etterpå brukes endrings-API-et. LOFT-77 bør beskrive dette, ikke anta at API-et mangler hjemmesidesøk.
 

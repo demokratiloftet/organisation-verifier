@@ -27,6 +27,7 @@ Velg «Alt stemmer», kjør to ganger, og velg deretter «Profilnavnet endres».
 
 ```sh
 pnpm check             # typer, tester og bygg
+pnpm test:worker-integration # varig worker mot den isolerte PDS-en
 pnpm test:integration  # krever demo:up; leser og kontrollerer records på den ekte test-PDS-en
 pnpm format:check
 pnpm demo:down         # stopper demoen; beholder SQLite-volumet
@@ -48,7 +49,11 @@ og `pnpm --dir fixture typecheck`; CI gjør dette automatisk.
 
 Fastify, SQLite og atproto-SDK brukes. Ingen frontend-rammeverk er nødvendig for dette kontrollpanelet. Policy, kilder, lagring og publisering ligger i hver sin modul under `src/`.
 
-Demoen er et første snitt gjennom flyten. Full registerimport, kontinuerlig overvåking, offentlig utsteder og produksjonsdrift er egne, gjenstående leveranser.
+Bakgrunnstjenesten er nå implementert: strømmet registerimport, varig jobbkø,
+Brreg-endringer, Jetstream v2, periodiske kontroller og en avgrenset offentlig
+publisher. Alt er avslått som standard. Se [automatikk, foreløpig policy og
+pilotoppsett](docs/automation.md) for oppstart og gjenstående aktivering.
+Offentlig utstederkonto, positiv pilotorganisasjon og policy må fortsatt bekreftes.
 
 ![Kontrollgrunnlag og publisering i demoen](docs/media/demo-overview.png)
 

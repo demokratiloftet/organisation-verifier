@@ -1,0 +1,14 @@
+# Apply only after issuer ownership, pilot organisations and verification policy are agreed.
+services:
+  app:
+    environment:
+      PUBLIC_ISSUANCE_ENABLED: 'true'
+      ISSUER_PDS: ${ISSUER_PDS:?Set the issuer PDS HTTPS origin}
+      ISSUER_DID: ${ISSUER_DID:?Set the expected issuer DID}
+      ISSUER_IDENTIFIER: ${ISSUER_IDENTIFIER:?Set the issuer login identifier}
+      PILOT_ORGNRS: ${PILOT_ORGNRS:?Set the comma-separated pilot organisation numbers}
+      ISSUER_PASSWORD_FILE: /run/secrets/issuer_password
+    secrets: [issuer_password]
+secrets:
+  issuer_password:
+    file: ./.runtime/issuer-password

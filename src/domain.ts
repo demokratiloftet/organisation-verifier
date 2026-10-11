@@ -3,6 +3,7 @@ import { isValidHandle } from '@atproto/syntax';
 export type Mode = 'fixture' | 'live';
 export type Decision = 'match' | 'no_match' | 'needs_review' | 'unavailable';
 export type Scenario = 'valid' | 'name_changed' | 'website_changed' | 'no_account' | 'unavailable';
+export const policyVersion = 'exact-domain-v1';
 export interface Organisation {
   orgnr: string;
   name: string;
@@ -16,6 +17,7 @@ export interface Identity {
   pds: string;
 }
 export interface Check {
+  policyVersion?: string;
   mode: Mode;
   organisation: Organisation;
   candidate?: string;
@@ -25,6 +27,18 @@ export interface Check {
   checkedAt: string;
 }
 export type SavedCheck = Check & { id: number };
+
+// Index every registered host, including path-based websites, to detect shared ownership.
+export function registryHost(website: string): string | undefined {
+  try {
+    const url = new URL(website.includes('://') ? website : `https://${website}`);
+    return ['http:', 'https:'].includes(url.protocol) && isValidHandle(url.hostname)
+      ? url.hostname.toLowerCase()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // A registered URL with a path can belong to a tenant on someone else's domain.
 // Keep this first policy conservative; parent-domain fallback needs its own policy.

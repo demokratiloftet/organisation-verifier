@@ -4,8 +4,11 @@ import type { Scenario } from './domain.js';
 import { FixtureSource, liveCheck } from './sources.js';
 import { fixtureRemote, Publisher } from './publisher.js';
 import { Store } from './store.js';
+import { type AutomationConfig } from './config.js';
+import { startAutomation } from './automation.js';
 
 export interface AppOptions {
+  automation?: AutomationConfig;
   database: string;
   fixtureBase: string;
   origin: string;
@@ -32,7 +35,14 @@ export async function createApp(options: AppOptions) {
       busy = false;
     }
   };
-  app.addHook('onClose', async () => store.close());
+  let stopAutomation = async () => {};
+  app.addHook('onReady', async () => {
+    stopAutomation = await startAutomation(store, options.automation ?? { enabled: false });
+  });
+  app.addHook('onClose', async () => {
+    await stopAutomation();
+    store.close();
+  });
   app.addHook('onRequest', async (request, reply) => {
     reply.header('cache-control', 'no-store');
     reply.header('x-content-type-options', 'nosniff');
@@ -62,6 +72,29 @@ export async function createApp(options: AppOptions) {
     app.get(route, async (_request, reply) => reply.type(type).send(content));
   }
   app.get('/health', async () => ({ ok: true }));
+  app.get('/ready', async (_request, reply) => {
+    const issues: string[] = [];
+    if (options.automation?.enabled) {
+      if (!(Date.now() - Date.parse(store.get('worker.heartbeat') ?? '') < 120_000)) issues.push('worker');
+      if (
+        store.get('registry.since') &&
+        !(Date.now() - Date.parse(store.get('registry.lastPoll') ?? '') < 300_000)
+      )
+        issues.push('registry');
+      if (
+        options.automation.jetstream &&
+        !(Date.now() - Date.parse(store.get('jetstream.lastEvent') ?? '') < 120_000)
+      )
+        issues.push('jetstream');
+      if (store.get('worker.error')) issues.push('worker-error');
+    }
+    return reply.code(issues.length ? 503 : 200).send({ ok: !issues.length, issues });
+  });
+  app.get('/api/automation', async () => ({
+    enabled: options.automation?.enabled ?? false,
+    publishing: !!options.automation?.issuer,
+    ...store.status(),
+  }));
   app.get('/api/state', async () => {
     let network;
     try {

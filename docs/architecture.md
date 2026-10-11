@@ -98,7 +98,7 @@ Fixture-modus går bevisst til faste lokale endepunkter. Den løser faktiske han
 
 Recorden ligger i **utstederens** repository. Organisasjonsnummer og kontrollgrunnlag lagres lokalt; lexiconet har ikke egne felt for disse. Visning som et Bluesky-verifikasjonsmerke forutsetter at klientens tillitsmodell godtar utstederen.
 
-En omkjøring gjenbruker TID og `createdAt`. Ukjent utfall etter et nettverksbrudd avklares med `getRecord`; vi utsteder ikke en ekstra record. Ukjent eller endret innhold på samme nøkkel holdes tilbake for manuell kontroll. Ny kontroll etter prosessrestart avklarer igjen. Det kjører foreløpig ingen automatisk bakgrunnsjobb for dette.
+En omkjøring gjenbruker TID og `createdAt`. Ukjent utfall etter et nettverksbrudd avklares med `getRecord`; vi utsteder ikke en ekstra record. Ukjent eller endret innhold på samme nøkkel holdes tilbake for manuell kontroll. Ny kontroll etter prosessrestart avklarer igjen. Den valgfrie bakgrunnsarbeideren kjører samme avstemming gjennom varige jobber. Se [automatikk](automation.md).
 
 ## Valgt demopolicy
 
@@ -107,12 +107,24 @@ En omkjøring gjenbruker TID og `createdAt`. Ukjent utfall etter et nettverksbru
 - Første syntaktisk gyldige `at://`-alias i DID-dokumentet må være handle-kandidaten.
 - Profilnavnet må samsvare med registernavnet etter normalisering av Unicode, mellomrom og store/små bokstaver. Dette er et konservativt demovalg, ikke en avklart forretningsregel.
 - Slettet organisasjon, endret domene, brutt identitet eller avvikende navn skal ikke fortsette en automatisk testverifikasjon.
-- Live-modus har ingen publisher eller konfigurasjonsbryter som kan slå på offentlig publisering.
+- Manuelle live-oppslag er read-only. Den valgfrie bakgrunnstjenesten har en egen offentlig transport med eksplisitt issuer-DID og pilotliste.
 
-## Begrensninger før produksjon
+## Automatikk og driftsgrenser
 
-SQLite-oppsettet og én samtidig operatørkjøring er egnet for demo og et lite grunnlag, ikke en ferdig distribusjon for hele registeret. Det trengs varige jobber, indekserte relasjoner, migrasjoner, retensjon, retry/backoff, revisjonsspor med policyversjon og en entydighetskontroll på tvers av organisasjoner før det skaleres.
+`registry.ts` strømmer fullimport og lagrer registerendringer med cursor og jobber i
+samme transaksjon. `store.ts` har indekser, additiv migrasjon og varige jobber.
+`worker.ts` gjenbruker kontroll- og publiseringsflyten. `jetstream.ts` kølegger
+nye kontroller; hendelser er aldri verifikasjonsbevis. `automation.ts` kjører dette
+i samme prosess, med én verifier og begrenset Brreg-parallellitet.
 
-Den offentlige handle-resolveren kan gi «ingen handle» ved både manglende oppføring og visse oppslagsfeil. Derfor skal dagens live-resultater ikke brukes som automatiske tilbakekallingssignaler. En produksjonsadapter må skille definitive negative svar fra nettverks-/resolverfeil, og håndtere suspendert/deaktivert konto eksplisitt.
+Den offentlige adapteren skiller DNS-/HTTP-feil fra definitivt fravær, bruker
+SSRF-beskyttet transport og henter kontostatus før profil. Feil gir retry, ikke
+umiddelbar tilbaketrekking. Etter syv dager uten fullført kontroll utløper
+verifikasjonen etter den foreløpige policyen.
+
+[Automatikk og drift](automation.md) beskriver oppstart, backup, restore, overvåking
+og foreløpige regler. Offentlig utstedelse og faktisk pilotakseptanse er fortsatt
+separate operatørsteg. Kapasitet for en landsdekkende gjennomgang er ikke målt mot
+hele det offentlige registeret.
 
 Kilder: [AT Protocol identity](https://atproto.com/specs/identity), [handle-spesifikasjon](https://atproto.com/specs/handle), [verifikasjonslexicon](https://github.com/bluesky-social/atproto/blob/main/lexicons/app/bsky/graph/verification.json), [Brreg API-dokumentasjon](https://data.brreg.no/enhetsregisteret/api/docs/index.html).

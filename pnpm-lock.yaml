@@ -23,6 +23,9 @@ importers:
       '@atproto/syntax':
         specifier: 0.7.6
         version: 0.7.6
+      '@streamparser/json-node':
+        specifier: 0.0.26
+        version: 0.0.26
       fastify:
         specifier: 5.12.5
         version: 5.12.5
@@ -282,6 +285,12 @@ packages:
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
+
+  '@streamparser/json-node@0.0.26':
+    resolution: {integrity: sha512-9OxH3oyILbxiHxNfhvfVpyWgaiLDxreWLk6t6xdSZxJlzKciXReMN6w446+lu+cgdpJxJlwNoyfBLPtTrCUJgA==}
+
+  '@streamparser/json@0.0.26':
+    resolution: {integrity: sha512-46597LNFI+MFdUnzX2QJWwmdTRdq0XVD+vVNJTtGVzIrnCuhG9pFo1OAzbNBqci8UJgk/X5KJZ6LcV+y7PTuDQ==}
 
   '@types/node@24.19.1':
     resolution: {integrity: sha512-aS3/DG0oM05K0RIXXP+hKjinGG5IgSSVGzswZxW3O0sS3pH4/fycXundUC9XsszgKCk4gHXylTEK6hyFxVxnoQ==}
@@ -817,6 +826,12 @@ snapshots:
   '@noble/hashes@1.8.0': {}
 
   '@pinojs/redact@0.4.0': {}
+
+  '@streamparser/json-node@0.0.26':
+    dependencies:
+      '@streamparser/json': 0.0.26
+
+  '@streamparser/json@0.0.26': {}
 
   '@types/node@24.19.1':
     dependencies:
