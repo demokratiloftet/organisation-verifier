@@ -9,64 +9,35 @@
   </head>
   <body>
     <header>
-      <a class="brand" href="/" aria-label="Loftet, startside"
-        ><span class="mark">L</span> demokratiloftet<span class="slash">/</span
-        ><span class="product">verifikasjon</span></a
-      ><span class="environment"><i></i> LOFT-76 · utviklingsdemo</span>
+      <a class="brand" href="/" aria-label="Loftet, startside"><span class="mark">L</span> demokratiloftet</a>
+      <span class="muted">Verifikasjon</span>
     </header>
     <main>
       <section class="intro">
-        <div>
-          <p class="eyebrow">ENHETSREGISTERET × AT PROTOCOL</p>
-          <h1>Fra register til<br /><em>verifisert konto.</em></h1>
-          <p class="lead">
-            En etterprøvbar kobling mellom en organisasjon,<br class="desktop" />
-            domenet i registeret og en eksisterende atproto-konto.
-          </p>
-        </div>
-        <aside>
-          <span class="note-number">01 — FORMÅL</span>
-          <p>Vi kontrollerer <strong>domenetilknytning.</strong></p>
-          <p>Dette beviser ikke hvem som har fullmakt til å representere bedriften.</p>
-        </aside>
+        <h1>Kontroller en organisasjon.</h1>
+        <p class="lead">Se om registrert nettside og atproto-konto hører sammen.</p>
       </section>
       <nav class="tabs" aria-label="Datakilde">
-        <button id="fixture-tab" class="tab active" aria-pressed="true">
-          Demonstrasjon <span>isolert PDS</span></button
-        ><button id="live-tab" class="tab" aria-pressed="false">Brreg <span>live oppslag</span></button>
+        <button id="fixture-tab" class="tab active" aria-pressed="true">Prøv demo</button>
+        <button id="live-tab" class="tab" aria-pressed="false">Søk i Brreg</button>
       </nav>
       <section id="fixture-panel" class="control-panel">
-        <div>
-          <p class="eyebrow">KONTROLLERT TESTMILJØ</p>
-          <h2>Samme flyt. Ekte atproto-records.</h2>
-          <p>
-            Fjordverk AS er fiktiv. Kontoer, DID-katalog og publisering er isolert fra det offentlige
-            nettverket.
-          </p>
-        </div>
         <form id="fixture-form">
           <label for="scenario">Velg en situasjon</label>
           <div class="form-row">
-            <select id="scenario">
-              <option value="valid">Alt stemmer → publiser</option>
-              <option value="name_changed">Profilnavnet endres → trekk tilbake</option>
-              <option value="website_changed">Hjemmesiden endres → kontroller på nytt</option>
+            <select id="scenario" aria-describedby="fixture-help">
+              <option value="valid">Alt stemmer</option>
+              <option value="name_changed">Profilnavnet endres</option>
+              <option value="website_changed">Hjemmesiden endres</option>
               <option value="no_account">Ingen konto på domenet</option>
-              <option value="unavailable">Midlertidig nettverksfeil</option></select
-            ><button class="primary" type="submit">Kjør kontroll <span aria-hidden="true">↗</span></button>
+              <option value="unavailable">Midlertidig nettverksfeil</option>
+            </select>
+            <button class="primary" type="submit">Kjør kontroll</button>
           </div>
-          <small>Gjenta «Alt stemmer» for å se at recorden ikke dupliseres.</small>
+          <small id="fixture-help">Fiktiv bedrift. Publisering skjer bare i testmiljøet.</small>
         </form>
       </section>
       <section id="live-panel" class="control-panel" hidden>
-        <div>
-          <p class="eyebrow">OFFENTLIGE KILDER · KUN LESING</p>
-          <h2>Kontroller en organisasjon fra Brreg.</h2>
-          <p>
-            Vi henter hjemmesiden fra API-et, finner en eventuell konto og kontrollerer identiteten begge
-            veier.
-          </p>
-        </div>
         <form id="live-form">
           <label for="orgnr">Organisasjonsnummer</label>
           <div class="form-row">
@@ -78,69 +49,45 @@
               maxlength="9"
               required
               aria-describedby="live-help"
-            /><button class="primary" type="submit">
-              Hent og kontroller <span aria-hidden="true">↗</span>
-            </button>
+            />
+            <button class="primary" type="submit">Kjør kontroll</button>
           </div>
-          <small id="live-help">Eksempel: Registerenheten i Brønnøysund. Ingen offentlig publisering.</small>
+          <small id="live-help">Henter offentlige opplysninger. Publiserer ingenting.</small>
         </form>
       </section>
       <p id="notice" role="status" aria-live="polite" hidden></p>
-      <section class="process" aria-label="Kontrollflyt">
-        <div>
-          <span>01</span><strong>Register</strong><small id="step-registry">Hjemmeside fra Brreg</small>
-        </div>
-        <b aria-hidden="true">→</b>
-        <div><span>02</span><strong>Identitet</strong><small id="step-identity">Handle ↔ DID</small></div>
-        <b aria-hidden="true">→</b>
-        <div>
-          <span>03</span><strong>Vurdering</strong><small id="step-decision">Domene og profilnavn</small>
-        </div>
-        <b aria-hidden="true">→</b>
-        <div>
-          <span>04</span><strong>Publisering</strong
-          ><small id="step-publish">Record på utstederens PDS</small>
-        </div>
-      </section>
-      <section class="results">
+      <section class="results" aria-label="Resultat">
         <div class="section-heading">
-          <div>
-            <p class="eyebrow">KONTROLLGRUNNLAG</p>
-            <h2 id="result-title">Klar for første kontroll</h2>
-          </div>
+          <h2 id="result-title">Klar for kontroll</h2>
           <span id="decision" class="badge">Ikke kjørt</span>
         </div>
-        <p id="reason" class="reason">Velg en situasjon og følg hva som skjer i hvert ledd.</p>
-        <div id="evidence" class="evidence"></div>
+        <p id="reason" class="reason">Velg en situasjon og kjør kontrollen.</p>
         <div id="record-section" hidden>
           <div class="record-heading">
-            <h3 id="record-title">Verifikasjon på test-PDS</h3>
+            <h3 id="record-title">Verifikasjon i testmiljøet</h3>
             <span id="publication-status" class="badge"></span>
           </div>
           <p id="publication-note"></p>
-          <details>
-            <summary>Vis record og tekniske detaljer</summary>
-            <pre id="record"></pre>
-          </details>
         </div>
+        <details id="check-details" hidden>
+          <summary>Vis detaljer</summary>
+          <div id="evidence" class="evidence"></div>
+          <pre id="record" hidden></pre>
+        </details>
       </section>
-      <section class="history">
-        <div class="section-heading">
-          <h2>Siste kontroller</h2>
-          <span id="history-count" class="muted">0 kjøringer</span>
-        </div>
+      <details class="secondary" id="history-panel" hidden>
+        <summary>Siste kontroller <span id="history-count" class="muted"></span></summary>
         <div id="history"></div>
+      </details>
+      <section id="automation-panel" hidden>
+        <details class="secondary">
+          <summary>Automatikk <span id="automation-mode" class="muted"></span></summary>
+          <p id="automation-summary"></p>
+          <p id="automation-progress" class="muted"></p>
+        </details>
+        <p id="automation-errors" class="muted" role="status" hidden></p>
       </section>
-      <section class="results" id="automation-panel" hidden>
-        <h2>Automatiske kontroller</h2>
-        <p id="automation-summary"></p>
-        <p id="automation-progress" class="muted"></p>
-        <p id="automation-errors" role="status"></p>
-      </section>
-      <footer>
-        <span>LOFT-76 / Organisation verifier</span
-        ><span>Ingen brukerregistrering · Ingen e-postverifisering · Eksisterende atproto-kontoer</span>
-      </footer>
+      <footer>Kontrollerer domenetilknytning, ikke juridisk fullmakt.</footer>
     </main>
   </body>
 </html>

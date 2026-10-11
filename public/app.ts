@@ -66,8 +66,15 @@ function render() {
       : p.mode === 'live' && p.orgnr === check?.organisation.orgnr,
   );
   const publication = publications[0];
-  text('#result-title', check?.organisation.name ?? 'Klar for første kontroll');
-  text('#reason', check?.reason ?? 'Velg en situasjon og følg hva som skjer i hvert ledd.');
+  text('#result-title', check?.organisation.name ?? 'Klar for kontroll');
+  text(
+    '#reason',
+    check?.reason ??
+      (mode === 'fixture'
+        ? 'Velg en situasjon og kjør kontrollen.'
+        : 'Skriv inn organisasjonsnummeret og kjør kontrollen.'),
+  );
+  $('#check-details').hidden = !check;
   text('#decision', check ? labels[check.decision] : 'Ikke kjørt');
   $('#decision').className = `badge ${check?.decision ?? ''}`;
   $('#evidence').replaceChildren(
@@ -88,19 +95,10 @@ function render() {
         ]
       : []),
   );
-  text('#step-registry', check?.organisation.website ?? 'Hjemmeside fra Brreg');
-  text(
-    '#step-identity',
-    check?.identity ? 'Toveis kobling bekreftet' : check ? 'Ingen bekreftet konto' : 'Handle ↔ DID',
-  );
-  text('#step-decision', check ? labels[check.decision] : 'Domene og profilnavn');
-  text(
-    '#step-publish',
-    publication ? publicationLabels[publication.state] : mode === 'live' ? 'Kun lesing' : 'Ingen record ennå',
-  );
   $('#record-section').hidden = !publication;
+  $('#record').hidden = !publication;
   if (publication) {
-    text('#record-title', mode === 'fixture' ? 'Verifikasjon på test-PDS' : 'Verifikasjon fra utstederen');
+    text('#record-title', mode === 'fixture' ? 'Verifikasjon i testmiljøet' : 'Verifikasjon fra utstederen');
     text('#publication-status', publicationLabels[publication.state]);
     $('#publication-status').className =
       `badge ${publication.state === 'published' ? 'match' : 'needs_review'}`;
@@ -108,10 +106,10 @@ function render() {
       '#publication-note',
       publication.error ??
         (publication.state === 'revoked'
-          ? 'Recorden er slettet fra PDS-en. Det lokale kontrollsporet beholdes.'
+          ? 'Verifikasjonen er fjernet.'
           : mode === 'fixture'
-            ? 'Lagret på den lokale utstederkontoen. Dette gir ikke et offentlig Bluesky-merke.'
-            : 'Publisert av bakgrunnstjenesten. Manuelle oppslag endrer ikke publiseringer.'),
+            ? 'Ingen offentlig publisering.'
+            : 'Håndteres automatisk av tjenesten.'),
     );
     text(
       '#record',
@@ -127,7 +125,8 @@ function render() {
       ),
     );
   }
-  text('#history-count', `${checks.length} kjøringer`);
+  $('#history-panel').hidden = !checks.length;
+  text('#history-count', String(checks.length));
   const rows: HTMLElement[] = checks.slice(0, 8).map((item) => {
     const row = document.createElement('div');
     row.className = 'history-row';
@@ -136,21 +135,12 @@ function render() {
     timestamp.className = 'mono muted';
     const name = document.createElement('strong');
     name.textContent = item.organisation.name;
-    const source = document.createElement('span');
-    source.textContent = item.candidate ?? 'Ingen hjemmeside';
-    source.className = 'muted';
     const badge = document.createElement('span');
     badge.textContent = labels[item.decision];
     badge.className = `badge ${item.decision}`;
-    row.append(timestamp, name, source, badge);
+    row.append(timestamp, name, badge);
     return row;
   });
-  if (!rows.length) {
-    const empty = document.createElement('p');
-    empty.className = 'empty';
-    empty.textContent = 'Kontrollhistorikken vises her.';
-    rows.push(empty);
-  }
   $('#history').replaceChildren(...rows);
 }
 async function refresh() {
@@ -171,9 +161,10 @@ async function refresh() {
   };
   $('#automation-panel').hidden = !automation.enabled;
   automatic = automation.enabled;
+  text('#automation-mode', automation.publishing ? 'Offentlig pilot' : 'Kun forhåndsvisning');
   text(
     '#automation-summary',
-    `${automation.publishing ? 'Offentlig pilot' : 'Forhåndsvisning – ingen offentlig publisering'}. ${automation.organisations} ${automation.organisations === 1 ? 'organisasjon' : 'organisasjoner'}, ${automation.queued} kontroller i kø.`,
+    `${automation.organisations} ${automation.organisations === 1 ? 'organisasjon' : 'organisasjoner'}, ${automation.queued} kontroller i kø.`,
   );
   const phases: Record<string, string> = {
     loading: 'Registerimport pågår',
@@ -194,6 +185,7 @@ async function refresh() {
       .filter(Boolean)
       .join(' '),
   );
+  $('#automation-errors').hidden = !$('#automation-errors').textContent;
 }
 async function run(path: string, body: Record<string, string>) {
   const buttons = document.querySelectorAll<HTMLButtonElement>('form button');
@@ -217,7 +209,7 @@ async function run(path: string, body: Record<string, string>) {
           : 'Kontrollen feilet.',
       );
     await refresh();
-    text('#notice', 'Kontrollen er ferdig. Grunnlaget og resultatet er oppdatert.');
+    text('#notice', 'Kontrollen er ferdig.');
     $('#notice').className = 'success';
   } catch (error) {
     text('#notice', error instanceof Error ? error.message : 'Kontrollen feilet.');
@@ -244,5 +236,8 @@ refresh().catch((error) => {
 });
 setInterval(() => {
   if (automatic && !document.hidden && !document.querySelector('form button:disabled'))
-    refresh().catch(() => text('#automation-errors', 'Status kunne ikke oppdateres. Prøver igjen.'));
+    refresh().catch(() => {
+      text('#automation-errors', 'Status kunne ikke oppdateres. Prøver igjen.');
+      $('#automation-errors').hidden = false;
+    });
 }, 10_000);
