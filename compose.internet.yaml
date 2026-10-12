@@ -1,0 +1,21 @@
+# Authenticated HTTPS, independent of the existing gateway and private PDS services.
+services:
+  app:
+    ports: !override ['${VERIFIER_BIND_IP:-127.0.0.1}:8443:3012']
+    environment:
+      APP_ORIGIN: https://verifikasjon.dev.demokratiloftet.no:8443
+      AUTOMATION_ENABLED: 'true'
+      PUBLIC_ISSUANCE_ENABLED: 'false'
+      JETSTREAM_URL: wss://jetstream.us-east.bsky.network/xrpc/network.bsky.jetstream.subscribeEvents
+      OPERATOR_CREDENTIALS_FILE: /run/secrets/operator
+      TLS_CERT_FILE: /tls/cert.pem
+      TLS_KEY_FILE: /tls/key.pem
+    volumes:
+      - ${VERIFIER_TLS_DIR:-/root/server-infrastructure/public-demo/.tls}:/tls:ro
+    secrets: [operator]
+    healthcheck:
+      # Local liveness; external acceptance checks validate the real TLS chain.
+      test: [CMD, node, dist/src/healthcheck.js]
+secrets:
+  operator:
+    file: ./.runtime/operator-credentials

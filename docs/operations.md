@@ -22,6 +22,13 @@ docker compose up -d --build --no-deps app
 
 ## VPS
 
+**Oppdatert 12. oktober 2026:** Den nyeste demoen har autentisert HTTPS på
+[verifikasjon.dev.demokratiloftet.no:8443](https://verifikasjon.dev.demokratiloftet.no:8443/).
+Se [gjeldende internettoppsett](internet.md). SSH-tunnelen nedenfor beskriver den
+tidligere, lokale driftsmodellen.
+
+### Tidligere loopback-demo
+
 Tjenesten ligger separat i `/root/organisation-verifier` på prosjektets VPS. Den benytter eget Compose-prosjekt, eget volum og egne nett. Det eksisterende `server-infrastructure`-oppsettet og domenene berøres ikke.
 
 Webappen på VPS-en er bare tilgjengelig over loopback. For demonstrasjon fra egen maskin må lokal app på samme port stoppes først:

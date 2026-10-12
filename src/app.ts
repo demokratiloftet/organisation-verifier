@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import Fastify from 'fastify';
 import type { Scenario } from './domain.js';
 import { FixtureSource, liveCheck } from './sources.js';
@@ -8,20 +9,31 @@ import { type AutomationConfig } from './config.js';
 import { startAutomation } from './automation.js';
 
 export interface AppOptions {
+  tls?: { key: Buffer; cert: Buffer };
+  operatorCredentials?: string;
   automation?: AutomationConfig;
   database: string;
   fixtureBase: string;
   origin: string;
 }
 export async function createApp(options: AppOptions) {
+  const origin = new URL(options.origin);
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(origin.hostname) && !options.operatorCredentials)
+    throw new Error('Internet access requires operator credentials.');
+  if (options.operatorCredentials && (!options.tls || origin.protocol !== 'https:'))
+    throw new Error('Operator credentials require HTTPS.');
+  const digest = (value: string) => createHash('sha256').update(value).digest();
+  const expected = options.operatorCredentials
+    ? digest(`Basic ${Buffer.from(options.operatorCredentials).toString('base64')}`)
+    : undefined;
   const app = Fastify({
+    https: options.tls ?? null,
     logger: false,
     bodyLimit: 2048,
     ajv: { customOptions: { removeAdditional: false } },
   });
   const store = new Store(options.database);
   const fixture = new FixtureSource(options.fixtureBase);
-  const origin = new URL(options.origin);
   let busy = false;
   const exclusive = async (action: () => Promise<void>) => {
     if (busy)
@@ -51,8 +63,13 @@ export async function createApp(options: AppOptions) {
       'content-security-policy',
       "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     );
-    // This operator demo is loopback/SSH-only. Host validation also blocks DNS rebinding.
+    // Exact Host/Origin checks apply to both local and authenticated HTTPS deployments.
     if (request.headers.host !== origin.host) return reply.code(403).send({ error: 'Uventet vert.' });
+    if (expected && !timingSafeEqual(expected, digest(request.headers.authorization ?? '')))
+      return reply
+        .code(401)
+        .header('www-authenticate', 'Basic realm="Loftet", charset="UTF-8"')
+        .send({ error: 'Logg inn for å bruke demoen.' });
     if (request.method === 'POST' && request.headers.origin !== origin.origin)
       return reply.code(403).send({ error: 'Uventet opprinnelse.' });
   });

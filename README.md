@@ -9,6 +9,9 @@ To moduser:
 
 Dette verifiserer **domenetilknytning**, ikke en persons juridiske fullmakt. Publisering gir heller ikke automatisk et synlig Bluesky-merke.
 
+Autentisert VPS-demo: [åpne verifikasjon](https://verifikasjon.dev.demokratiloftet.no:8443/).
+[Enkel forklaring og drift](docs/internet.md).
+
 ## Start
 
 Krever Docker Compose, Node **24.17** og pnpm **11.8**.
