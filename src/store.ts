@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import type { AppBskyGraphVerification } from '@atproto/api';
-import { registryHost, type Check, type SavedCheck, type Organisation } from './domain.js';
+import { registryHost, hostVariants, type Check, type SavedCheck, type Organisation } from './domain.js';
 
 export interface Job {
   key: string;
@@ -102,22 +102,29 @@ export class Store {
       // Do not fan out to thousands of tenants each time another shared website is imported.
       for (const affectedHost of [previous?.host, host]) {
         if (!affectedHost) continue;
+        const variants = hostVariants(String(affectedHost));
         const members = this.db
-          .prepare('SELECT orgnr FROM organisations WHERE host=? LIMIT 3')
-          .all(affectedHost);
+          .prepare('SELECT orgnr FROM organisations WHERE host IN (?,?) LIMIT 3')
+          .all(variants[0]!, variants[1] ?? null);
         if (members.length <= 2)
           for (const member of members) this.enqueue(String(member.orgnr), Date.now(), priority);
       }
     }
   }
   affected(did: string, handle?: string): string[] {
+    const variants = handle ? hostVariants(handle) : [];
     return this.db
-      .prepare('SELECT orgnr FROM organisations WHERE did=? OR host=?')
-      .all(did, handle ?? null)
+      .prepare('SELECT orgnr FROM organisations WHERE did=? OR host IN (?,?)')
+      .all(did, variants[0] ?? null, variants[1] ?? null)
       .map((row) => String(row.orgnr));
   }
   sharedHost(host: string): boolean {
-    return this.db.prepare('SELECT orgnr FROM organisations WHERE host=? LIMIT 2').all(host).length > 1;
+    const variants = hostVariants(host);
+    return (
+      this.db
+        .prepare('SELECT orgnr FROM organisations WHERE host IN (?,?) LIMIT 2')
+        .all(variants[0]!, variants[1] ?? null).length > 1
+    );
   }
   enqueue(orgnr: string, due = Date.now(), priority = 1): void {
     this.db

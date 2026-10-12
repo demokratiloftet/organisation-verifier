@@ -1,0 +1,104 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { liveCheck } from '../src/sources.js';
+import { type Identity, type Organisation, policyVersion } from '../src/domain.js';
+
+const org: Organisation = {
+  orgnr: '922669708',
+  name: 'DEVOTTA AS',
+  website: 'www.devotta.no',
+  deleted: false,
+};
+const account = (handle: string, displayName = 'Devotta AS'): Identity => ({
+  did: 'did:plc:abcdefghijklmnopqrstuvwx',
+  handle,
+  displayName,
+  pds: 'https://pds.example.org',
+});
+
+test('www fallback checks the exact host first and retains the registered website in the evidence', async () => {
+  const calls: string[] = [];
+  const check = await liveCheck(
+    org.orgnr,
+    async () => org,
+    async (handle) => {
+      calls.push(handle);
+      return handle === 'devotta.no' ? account(handle) : undefined;
+    },
+  );
+  assert.deepEqual(calls, ['www.devotta.no', 'devotta.no']);
+  assert.equal(check.decision, 'match');
+  assert.equal(check.organisation.website, 'www.devotta.no');
+  assert.equal(check.candidate, 'devotta.no');
+  assert.equal(check.policyVersion, policyVersion);
+  assert.match(check.reason, /uten www/);
+});
+
+test('www fallback never bypasses a confirmed account, name mismatch or lookup failure', async () => {
+  for (const displayName of ['Devotta AS', 'Another company']) {
+    const calls: string[] = [];
+    const check = await liveCheck(
+      org.orgnr,
+      async () => org,
+      async (handle) => {
+        calls.push(handle);
+        return account(handle, displayName);
+      },
+    );
+    assert.deepEqual(calls, ['www.devotta.no']);
+    assert.equal(check.decision, displayName === 'Devotta AS' ? 'match' : 'needs_review');
+  }
+  const calls: string[] = [];
+  const failed = await liveCheck(
+    org.orgnr,
+    async () => org,
+    async (handle) => {
+      calls.push(handle);
+      throw new Error('DNS timeout');
+    },
+  );
+  assert.deepEqual(calls, ['www.devotta.no']);
+  assert.equal(failed.decision, 'unavailable');
+  const mismatch = await liveCheck(
+    org.orgnr,
+    async () => org,
+    async (handle) => (handle === 'devotta.no' ? account(handle, 'Other company') : undefined),
+  );
+  assert.equal(mismatch.decision, 'needs_review');
+  const wrongDomain = await liveCheck(
+    org.orgnr,
+    async () => org,
+    async (handle) => (handle === 'devotta.no' ? account('attacker.no') : undefined),
+  );
+  assert.equal(wrongDomain.decision, 'no_match');
+});
+
+test('no arbitrary parent fallback, invalid URL fallback, or lookup of a deleted organisation', async () => {
+  for (const website of [
+    'team.devotta.no',
+    'devotta.no',
+    'www.devotta.no/team',
+    'www.no',
+    'www.www.devotta.no',
+  ]) {
+    const calls: string[] = [];
+    const check = await liveCheck(
+      org.orgnr,
+      async () => ({ ...org, website }),
+      async (handle) => {
+        calls.push(handle);
+        return undefined;
+      },
+    );
+    assert.deepEqual(calls, website.includes('/') ? [] : [website]);
+    assert.notEqual(check.decision, 'match');
+  }
+  const deleted = await liveCheck(
+    org.orgnr,
+    async () => ({ ...org, deleted: true }),
+    async () => {
+      throw new Error('Must not query');
+    },
+  );
+  assert.equal(deleted.decision, 'no_match');
+});

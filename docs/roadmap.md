@@ -7,7 +7,7 @@ LOFT-76 er fortsatt fasiten for produktmålet. Repoet leverer en demonstrerbar k
 | Beslutning                        | Forslag                                                            | Hvorfor det må avgjøres                                               |
 | --------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | Hva utstederen garanterer         | Domenetilknytning til en Brreg-enhet                               | Ikke impliser juridisk fullmakt eller BankID-kontroll                 |
-| Eksakt host eller foreldredomene  | Start eksakt; dokumenter unntak separat                            | `tenant.felles.no` må ikke verifisere `felles.no`                     |
+| Eksakt host eller foreldredomene  | Eksakt først; tillat kontroll uten innledende `www`                | `tenant.felles.no` må ikke verifisere `felles.no`                     |
 | Flere enheter på samme domene/DID | Hold tilbake automatisk utstedelse                                 | Én nettside kan dekke konsern, filialer og helt andre enheter         |
 | Registrert navn vs. merkenavn     | Avklar tillatte avvik og manuell overstyring                       | Dagens nøyaktige navnesammenligning vil avvise legitime merkenavn     |
 | Utløp, feil og tilbakekalling     | Avtal maks alder, retry-vindu og definitive tilbakekallingsgrunner | En timeout er ikke bevis på at koblingen er borte                     |

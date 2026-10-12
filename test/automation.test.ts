@@ -427,3 +427,31 @@ test('shared-domain changes recheck unique/shared transitions without fanning ou
     store.close();
   }
 });
+
+test('www and bare hosts share conflict checks and event/recheck scheduling, including existing rows', async () => {
+  const store = new Store(':memory:');
+  const wire = remote();
+  ready(store);
+  const wwwOrg = { ...org, website: 'www.devotta.no' };
+  const check = { ...positive, organisation: wwwOrg };
+  try {
+    store.enqueue(org.orgnr);
+    await workOnce(store, wire.client, async () => check);
+    assert.equal(wire.records.size, 1);
+    assert.deepEqual(store.affected('did:plc:unknown', 'devotta.no'), [org.orgnr]);
+    // A path-based tenant still counts as conflicting registered use of the bare domain.
+    store.upsertOrganisation({ ...org, orgnr: '123456789', website: 'devotta.no/team' });
+    assert.equal(store.sharedHost('devotta.no'), true);
+    assert.equal(store.sharedHost('www.devotta.no'), true);
+    assert(store.db.prepare('SELECT 1 FROM jobs WHERE key=?').get(org.orgnr));
+    store.db.prepare('DELETE FROM jobs WHERE key<>?').run(org.orgnr);
+    await workOnce(store, wire.client, async () => check);
+    assert.equal(wire.records.size, 0);
+    assert.equal(store.checks()[0]!.decision, 'needs_review');
+    store.upsertOrganisation({ ...org, orgnr: '123456789', deleted: true });
+    assert.equal(store.sharedHost('devotta.no'), false);
+    assert(store.db.prepare('SELECT 1 FROM jobs WHERE key=?').get(org.orgnr));
+  } finally {
+    store.close();
+  }
+});

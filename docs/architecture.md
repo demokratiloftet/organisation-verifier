@@ -102,7 +102,7 @@ En omkjøring gjenbruker TID og `createdAt`. Ukjent utfall etter et nettverksbru
 
 ## Valgt demopolicy
 
-- Bare eksakt registrert vertsnavn. `www` fjernes ikke automatisk, og vi hopper ikke til foreldredomener.
+- Registrert vertsnavn prøves først. Uten bekreftet konto prøves domenet uten én innledende `www.`. Nettverksfeil gir ikke fallback. Vi hopper ikke fra andre underdomener til foreldredomener.
 - Sti, query, fragment, brukerinformasjon eller egen port krever vurdering.
 - Første syntaktisk gyldige `at://`-alias i DID-dokumentet må være handle-kandidaten.
 - Profilnavnet må samsvare med registernavnet etter normalisering av Unicode, mellomrom og store/små bokstaver. Dette er et konservativt demovalg, ikke en avklart forretningsregel.

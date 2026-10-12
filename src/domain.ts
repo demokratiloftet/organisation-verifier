@@ -3,7 +3,7 @@ import { isValidHandle } from '@atproto/syntax';
 export type Mode = 'fixture' | 'live';
 export type Decision = 'match' | 'no_match' | 'needs_review' | 'unavailable';
 export type Scenario = 'valid' | 'name_changed' | 'website_changed' | 'no_account' | 'unavailable';
-export const policyVersion = 'exact-domain-v1';
+export const policyVersion = 'www-fallback-v2';
 export interface Organisation {
   orgnr: string;
   name: string;
@@ -41,7 +41,7 @@ export function registryHost(website: string): string | undefined {
 }
 
 // A registered URL with a path can belong to a tenant on someone else's domain.
-// Keep this first policy conservative; parent-domain fallback needs its own policy.
+// Paths and arbitrary parent-domain fallbacks remain unsupported.
 export function websiteHandle(website: string): string | undefined {
   try {
     const url = new URL(website.includes('://') ? website : `https://${website}`);
@@ -60,6 +60,21 @@ export function websiteHandle(website: string): string | undefined {
   } catch {
     return;
   }
+}
+
+export function withoutWww(host: string): string | undefined {
+  if (!host.startsWith('www.')) return;
+  const bare = host.slice(4);
+  return !bare.startsWith('www.') && isValidHandle(bare) ? bare : undefined;
+}
+
+// Treat the two supported spellings together for shared-domain checks and events.
+export function hostVariants(host: string): string[] {
+  if (host.startsWith('www.')) {
+    const bare = withoutWww(host);
+    return bare ? [host, bare] : [host];
+  }
+  return isValidHandle(`www.${host}`) ? [host, `www.${host}`] : [host];
 }
 
 export function claimedHandle(aliases: string[] = []): string | undefined {
@@ -84,6 +99,9 @@ export function decide(
       decision: 'needs_review',
       reason: 'Hjemmesiden er ikke et entydig domene. Sti, port og delt vert krever vurdering.',
     };
+  const registered = websiteHandle(organisation.website);
+  if (!registered || (candidate !== registered && candidate !== withoutWww(registered)))
+    return { decision: 'no_match', reason: 'Kontoens domene samsvarer ikke med hjemmesiden i registeret.' };
   if (!identity)
     return {
       decision: 'no_match',
@@ -97,5 +115,11 @@ export function decide(
       reason: 'Profilnavnet avviker fra det registrerte navnet. Automatisk publisering holdes tilbake.',
     };
   }
-  return { decision: 'match', reason: 'Registrert domene, toveis identitet og profilnavn samsvarer.' };
+  return {
+    decision: 'match',
+    reason:
+      candidate === registered
+        ? 'Registrert domene, toveis identitet og profilnavn samsvarer.'
+        : 'Domenet uten www, toveis identitet og profilnavn samsvarer.',
+  };
 }

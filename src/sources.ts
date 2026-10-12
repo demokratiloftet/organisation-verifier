@@ -6,6 +6,7 @@ import {
   policyVersion,
   decide,
   websiteHandle,
+  withoutWww,
   type Check,
   type Identity,
   type Organisation,
@@ -36,13 +37,23 @@ export async function fetchOrganisation(orgnr: string): Promise<Organisation> {
   };
 }
 
-export async function liveCheck(orgnr: string): Promise<Check> {
+export async function liveCheck(
+  orgnr: string,
+  organisationSource = fetchOrganisation,
+  identitySource = resolveIdentity,
+): Promise<Check> {
   let organisation: Organisation = { orgnr, name: orgnr, deleted: false };
   let candidate: string | undefined;
   try {
-    organisation = await fetchOrganisation(orgnr);
+    organisation = await organisationSource(orgnr);
     candidate = organisation.website ? websiteHandle(organisation.website) : undefined;
-    const identity = candidate && !organisation.deleted ? await resolveIdentity(candidate) : undefined;
+    let identity = candidate && !organisation.deleted ? await identitySource(candidate) : undefined;
+    const fallback = candidate ? withoutWww(candidate) : undefined;
+    // Only confirmed absence permits a fallback. A timeout must remain uncertain.
+    if (!identity && fallback && !organisation.deleted) {
+      candidate = fallback;
+      identity = await identitySource(candidate);
+    }
     return {
       mode: 'live',
       policyVersion,

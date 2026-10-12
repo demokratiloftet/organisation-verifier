@@ -8,10 +8,11 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 ## Foreløpige regler som må bekreftes før offentlig pilot
 
 - Vi bekrefter domenetilknytning til en Brreg-enhet, ikke juridisk fullmakt.
-- Bare eksakt registrert host godtas. Ingen automatisk fjerning av `www`, overgang
-  til foreldredomene, navneunntak eller manuell overstyring.
+- Registrert host prøves først. Hvis ingen konto er toveis bekreftet der, kan én
+  innledende `www.` fjernes og domenet kontrolleres på nytt. Nettverksfeil eller
+  navneavvik gir ikke dette unntaket. Andre foreldredomener og navneunntak støttes ikke.
 - Profilnavnet må samsvare etter Unicode-, mellomrom- og bokstavnormalisering.
-- Flere enheter med samme registrerte host gir manuell vurdering. Nettsteder med
+- Flere enheter med samme host, med eller uten `www`, gir manuell vurdering. Nettsteder med
   en sti telles med ved konfliktkontroll, selv om de ikke selv kan verifiseres.
 - Positive kontroller gjentas daglig; andre kjente domener ukentlig. Register- og
   kontohendelser kølegger tidligere kontroll. Identitetshendelser uten handle og
@@ -27,7 +28,7 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 - Operatørtilgang er fortsatt SSH/loopback. Offentlig operatørgrensesnitt og flere
   tilgangsroller er ikke innført; det er ikke nødvendig for denne driftsmodellen.
 
-Policyversjonen `exact-domain-v1` lagres med nye kontroller. Ingen prøveidentiteter
+Policyversjonen `www-fallback-v2` lagres med nye kontroller. Ingen prøveidentiteter
 kan passere den offentlige publisheren. En offentlig utstederkonto og en konto
 som skal verifiseres er to ulike roller.
 
