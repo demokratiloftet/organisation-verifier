@@ -211,6 +211,62 @@ test('Jetstream events enqueue authoritative checks and duplicates cannot advanc
   }
 });
 
+test('a normal no-account result is revisited on identity or new-account events before its weekly recheck', async () => {
+  for (const kind of ['identity', 'account']) {
+    const store = new Store(':memory:');
+    const wire = remote();
+    ready(store);
+    try {
+      store.upsertOrganisation(org);
+      const absent: Check = { ...positive, identity: undefined, decision: 'no_match' };
+      await workOnce(store, wire.client, async () => absent);
+      assert.equal(store.status().queued, 0);
+      assert.equal(store.status().retrying, 0);
+      assert.equal(wire.records.size, 0);
+      assert.ok(store.lastSuccess(org.orgnr));
+      const next = store.db.prepare('SELECT next_check FROM organisations WHERE orgnr=?').get(org.orgnr)!;
+      assert.ok(Number(next.next_check) > Date.now() + 6 * 86_400_000);
+      store.schedule();
+      assert.equal(store.status().queued, 0);
+
+      queueEvent(store, {
+        $type: 'message',
+        payload: {
+          $type: `network.bsky.jetstream.subscribeEvents#${kind}`,
+          seq: 1,
+          time: new Date().toISOString(),
+          did: positive.identity!.did,
+          ...(kind === 'identity' ? { identity: { handle: 'devotta.no' } } : { account: { active: true } }),
+        },
+      });
+      if (kind === 'account') {
+        assert.equal(store.status().discovery, 1);
+        await workOnce(
+          store,
+          wire.client,
+          async () => {
+            throw new Error('must discover first');
+          },
+          async () => 'devotta.no',
+        );
+      }
+      assert.equal(store.status().queued, 1);
+      assert.equal(wire.records.size, 0); // An event is never verification evidence.
+      let checked = false;
+      await workOnce(store, wire.client, async (orgnr) => {
+        assert.equal(orgnr, org.orgnr);
+        checked = true;
+        return { ...positive, checkedAt: new Date().toISOString() };
+      });
+      assert.equal(checked, true);
+      assert.equal(wire.records.size, 1);
+      assert.equal(store.status().queued, 0);
+    } finally {
+      store.close();
+    }
+  }
+});
+
 test('worker publishes only approved live checks, retries outages, expires stale evidence and revokes shared domains', async () => {
   const store = new Store(':memory:');
   const wire = remote();

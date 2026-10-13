@@ -77,6 +77,13 @@ function render() {
         : 'Skriv inn organisasjonsnummeret og kjør kontrollen.'),
   );
   $('#check-details').hidden = !check;
+  $('#account-help').hidden = !(
+    mode === 'live' &&
+    check?.decision === 'no_match' &&
+    !check.organisation.deleted &&
+    check.candidate &&
+    !check.identity
+  );
   text('#decision', check ? labels[check.decision] : 'Ikke kjørt');
   $('#decision').className = `badge ${check?.decision ?? ''}`;
   $('#evidence').replaceChildren(

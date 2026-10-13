@@ -83,6 +83,43 @@ h1 {
   line-height: 1.6;
   margin: 0;
 }
+.guide-link {
+  font-size: 14px;
+  margin: 16px 0 0;
+  line-height: 1.6;
+}
+.guide {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.guide section {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+.guide h3 {
+  font-size: 16px;
+  margin-top: 20px;
+}
+.guide table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.guide th,
+.guide td {
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px 10px 0;
+}
+.guide th {
+  font-weight: 550;
+}
+.guide-note {
+  padding: 16px;
+  background: #e8efdf;
+  border-radius: 6px;
+}
 .tabs {
   display: flex;
   gap: 16px;

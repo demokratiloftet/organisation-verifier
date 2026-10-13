@@ -75,6 +75,7 @@ export async function createApp(options: AppOptions) {
   });
   const assets = [
     ['/', 'index.html', 'text/html'],
+    ['/veiledning', 'veiledning.html', 'text/html'],
     ['/app.js', 'app.js', 'text/javascript'],
     ['/style.css', 'style.css', 'text/css'],
   ] as const;

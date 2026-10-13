@@ -16,6 +16,7 @@
       <section class="intro">
         <h1>Kontroller en organisasjon.</h1>
         <p class="lead">Se om registrert nettside og atproto-konto hører sammen.</p>
+        <p class="guide-link"><a href="/veiledning">Slik klargjør du kontoen for verifikasjon →</a></p>
       </section>
       <nav class="tabs" aria-label="Datakilde">
         <button id="fixture-tab" class="tab active" aria-pressed="true">Prøv demo</button>
@@ -61,6 +62,10 @@
           <span id="decision" class="badge">Ikke kjørt</span>
         </div>
         <p id="reason" class="reason">Velg en situasjon og kjør kontrollen.</p>
+        <p id="account-help" class="reason" hidden>
+          Ingen konto funnet er et normalt resultat. Når domenet kobles til en konto, kan organisasjonen
+          kontrolleres på nytt. <a href="/veiledning">Se veiledningen for DNS og well-known.</a>
+        </p>
         <div id="record-section" hidden>
           <div class="record-heading">
             <h3 id="record-title">Verifikasjon i testmiljøet</h3>
@@ -86,7 +91,8 @@
           <p id="automation-progress" class="muted"></p>
           <p class="muted">
             Hele registeret importeres én gang. Deretter hentes endringer. Domener og kontoer kontrolleres i
-            en egen kø; et importert register betyr ikke at alle kontoer er kontrollert.
+            en egen kø; et importert register betyr ikke at alle kontoer er kontrollert. Ingen konto funnet er
+            ikke en teknisk feil. Nye domenekoblinger kan utløse ny kontroll.
           </p>
         </details>
         <p id="automation-errors" class="muted" role="status" hidden></p>
