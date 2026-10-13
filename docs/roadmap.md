@@ -1,3 +1,5 @@
+> Offentlig utsteder er nå valgt; se [offentlig oppsett](public-issuer.md). Den interne kontoen nedenfor beskriver tidligere pilot.
+
 # LOFT-76: ferdigkriterier og videre bruk
 
 Oppdatert 13. oktober 2026. [LOFT-76](https://devotta.atlassian.net/browse/LOFT-76)

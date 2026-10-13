@@ -30,7 +30,18 @@ export function queueEvent(store: Store, input: unknown): void {
     !Number.isFinite(Date.parse(witnessed))
   )
     throw new Error('Invalid Jetstream event.');
-  if (seq <= Number(store.get('jetstream.cursor') ?? -1)) return;
+  if (seq <= Number(store.get('jetstream.cursor') ?? -1)) {
+    const previousTime = Date.parse(store.get('jetstream.time') ?? '');
+    // A public endpoint can be restored/replaced with a lower sequence space.
+    // Ordinary replay duplicates stay ignored. A clearly newer event with a
+    // regressed sequence starts a new epoch and schedules authoritative rechecks.
+    if (!Number.isFinite(previousTime) || Date.parse(witnessed) <= previousTime + 60_000) return;
+    store.transaction(() => {
+      store.set('jetstream.gap', 'SequenceReset');
+      store.set('jetstream.cursor', '0');
+      store.db.exec('UPDATE organisations SET next_check=0');
+    });
+  }
   const identity = event.identity as { handle?: unknown } | undefined;
   const handle =
     typeof identity?.handle === 'string' && isValidHandle(identity.handle) ? identity.handle : undefined;
