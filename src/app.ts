@@ -79,15 +79,20 @@ export async function createApp(options: AppOptions) {
     ['/app.js', 'app.js', 'text/javascript'],
     ['/style.css', 'style.css', 'text/css'],
   ] as const;
+  const assetDirectory = new URL(
+    import.meta.url.endsWith('.ts') ? '../dist/public/' : '../public/',
+    import.meta.url,
+  );
+  const guide = await readFile(new URL('veiledning.html', assetDirectory), 'utf8');
   for (const [route, file, type] of assets) {
-    const content = await readFile(
-      new URL(
-        import.meta.url.endsWith('.ts') ? '../dist/public/' + file : '../public/' + file,
-        import.meta.url,
-      ),
-      'utf8',
+    const content = await readFile(new URL(file, assetDirectory), 'utf8');
+    // The shared ingress permits the root path; the guide is a read-only view
+    // behind the same operator authentication, without a gateway-wide rollout.
+    app.get(route, async (request, reply) =>
+      reply
+        .type(type)
+        .send(route === '/' && new URL(request.url, origin).searchParams.has('veiledning') ? guide : content),
     );
-    app.get(route, async (_request, reply) => reply.type(type).send(content));
   }
   app.get('/health', async () => ({ ok: true }));
   app.get('/ready', async (_request, reply) => {
