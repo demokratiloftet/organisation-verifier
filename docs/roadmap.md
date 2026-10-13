@@ -1,5 +1,3 @@
-> Offentlig utsteder er nå valgt; se [offentlig oppsett](public-issuer.md). Den interne kontoen nedenfor beskriver tidligere pilot.
-
 # LOFT-76: ferdigkriterier og videre bruk
 
 Oppdatert 13. oktober 2026. [LOFT-76](https://devotta.atlassian.net/browse/LOFT-76)
@@ -7,15 +5,17 @@ krever en full registergjennomgang og faktisk offentlig publisering. Kode og en
 positiv manuell kontroll er ikke alene nok til å lukke oppgaven.
 
 Fullimport er kjørt på VPS-en (1 177 860 enheter i snapshotet). Registerendringer
-og kontroller behandles fortløpende. Intern utstedelse er aktivert for Devotta;
+og kontroller behandles fortløpende. Offentlig utstedelse er aktivert for Devotta;
 andre organisasjoner kontrolleres uten utstedelse. Automatikken er merget i PR #6.
+Den offentlige PDS-en og operatørsiden kjører på Demokratiloftet-domenet. Se
+[oppsett og gjennomført akseptanse](public-issuer.md).
 
 ## Kort restliste
 
-- [x] Dedikert Demokratiloftet-utsteder på egen VPS: konto og app-passord er opprettet; intern pilot er valgt. Driftsansvar står på restlisten nedenfor.
+- [x] Dedikert offentlig Demokratiloftet-utsteder på egen VPS, med offentlig PLC/DNS og HTTPS.
 - [ ] Bekreft hva vi lover: domenetilknytning, navnekrav, delte domener og regler for tilbaketrekking. Fullfør angrepsgjennomgangen i LOFT-87.
-- [ ] Fullfør endringsavstemming og gjennomgå positive treff uten publisering. Full Brreg-import på VPS-en er gjort.
-- [ ] Publiser for en avgrenset pilot og verifiser at en annen klient kan lese recorden. Test omkjøring uten duplikater og faktisk tilbaketrekking.
+- [x] Fullfør import og endringsavstemming. Nye Brreg-endringer behandles fortløpende.
+- [x] Publiser Devotta-piloten offentlig og les recorden utenfra og fra begge egne apper. Ny kontroll beholdt samme record uten duplikater. Den gamle private verifikasjonen ble faktisk trukket tilbake; publisering/tilbaketrekking er også testet mot isolert PDS i CI.
 - [ ] Fullfør første kontrollbatch, dokumenter feil/unntak og avklar hvilke treff som er godkjent for offentlig utstedelse. Dagens pilotliste tillater ikke automatisk publisering for alle treff.
 - [ ] Avtal driftsansvar, varsling og backup/gjenoppretting; dokumenter akseptansen før LOFT-76 lukkes.
 
@@ -27,12 +27,12 @@ inneholder `app.bsky.graph.verification`-records som peker på organisasjonenes 
 Å skrive den offentlige recorden til repositoryet er publiseringen; det er ikke
 et vanlig innlegg i en sosial feed. Kontoen som verifiseres er en annen rolle.
 
-LOFT-76 foreslår Eurosky, men en egen Demokratiloftet-konto på vår VPS er også mulig.
-Intern pilot på egen VPS er valgt 13. oktober. Utstederen er
-`verifikasjon.spaces-pds.dev.demokratiloftet.no`, DID
-`did:plc:ifkuegcojgr6lmmpzr5l2rai`. Se [privat utsteder](private-issuer.md).
-Publisheren låser utsteder-DID og pilotliste. Offentlig publisering er avslått. App-passord legges i en
-beskyttet fil på VPS-en, aldri i chat, Git eller klientkode.
+Offentlig utsteder på egen VPS ble valgt 13. oktober. Utstederen er
+`verifikasjon.demokratiloftet.no`, DID `did:plc:coubd2izvctyl4emmh426pf7`.
+PDS-en er `https://pds.verifikasjon.demokratiloftet.no`. Publisheren låser
+utsteder-DID og pilotliste; bare Devotta kan få offentlig verifikasjon foreløpig.
+App-passord ligger i en beskyttet fil på VPS-en, aldri i chat, Git eller klientkode.
+Den tidligere private pilotkontoen er avviklet som utsteder; historikken beholdes.
 
 ## Public Suffix List og domeneregelen
 

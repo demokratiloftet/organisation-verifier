@@ -1,4 +1,6 @@
 > Historisk intern pilot. Den nye offentlige utstederen er dokumentert i [public-issuer.md](public-issuer.md).
+> Den private Devotta-recorden ble slettet fra PDS-en 13. oktober 2026 kl. 17:30 UTC.
+> Privat utstedelse er nå avslått; konto og historikk beholdes. Statusen nedenfor beskriver den tidligere piloten.
 
 # Intern Demokratiloftet-utsteder
 
