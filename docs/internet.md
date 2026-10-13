@@ -14,7 +14,8 @@ Dette bekrefter domenetilknytning, ikke at personen bak kontoen har juridisk ful
 
 Demoen kan publisere, gjenta og trekke tilbake verifikasjoner i en isolert PDS.
 Brreg-fanen gjør ekte oppslag, men publiserer ingenting. Offentlig utstedelse er
-avslått. Landsdekkende import og verifikasjon er ikke startet på denne VPS-en.
+avslått. Fullimport ble kjørt 13. oktober 2026 med 1 177 860 enheter. Endringsavstemming
+og kontrollkøen kjører; hele førstegangskontrollen er ikke ferdig.
 Foreløpige regler og valgene før en offentlig pilot står i [automation.md](automation.md).
 
 ## Data og tilgang
@@ -53,9 +54,9 @@ forrige Compose-oppsett/image. Bygg fra en ren Git-release, oppgrader bare appen
 og behold fixture-containeren og volumet. Kontroller anonym 401, gyldig innlogging,
 fremmed Origin/Host 403, demoens publisering/tilbaketrekking og fixture-isolasjon.
 
-Automatisk deploy forblir pauset så lenge denne feature-branchen kjører på VPS-en.
-Etter sammenslåing og kontroll kan den aktiveres igjen. Ikke kjør gamle main over
-nytt skjema ved et uhell. Backup og tidligere release ligger under
+Automatikken er merget til `main` i PR #6. Automatisk deploy kan aktiveres etter
+kontrollert utrulling av samme `main`-versjon; behold HTTPS-oppsettet og volumet.
+Ikke kjør gamle images over nytt skjema ved et uhell. Backup og tidligere release ligger under
 `/root/loftet-rollbacks/verifier-20261012`.
 
 Ved rollback: steng den offentlige porten før gammel app uten innlogging startes.

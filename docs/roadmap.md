@@ -4,11 +4,14 @@ Oppdatert 13. oktober 2026. [LOFT-76](https://devotta.atlassian.net/browse/LOFT-
 krever en full registergjennomgang og faktisk offentlig publisering. Kode og en
 positiv manuell kontroll er ikke alene nok til å lukke oppgaven.
 
+Fullimport er kjørt på VPS-en (1 177 860 enheter i snapshotet). Registerendringer
+og kontroller behandles fortløpende, uten utstedelse. Automatikken er merget i PR #6.
+
 ## Kort restliste
 
 - [ ] Velg en dedikert utstederkonto: PDS, handle/DID, ansvarlig og app-passord på VPS-en.
 - [ ] Bekreft hva vi lover: domenetilknytning, navnekrav, delte domener og regler for tilbaketrekking. Fullfør angrepsgjennomgangen i LOFT-87.
-- [ ] Kjør full Brreg-import og endringsavstemming på VPS-en; gjennomgå positive treff uten publisering først.
+- [ ] Fullfør endringsavstemming og gjennomgå positive treff uten publisering. Full Brreg-import på VPS-en er gjort.
 - [ ] Publiser for en avgrenset pilot og verifiser at en annen klient kan lese recorden. Test omkjøring uten duplikater og faktisk tilbaketrekking.
 - [ ] Fullfør første kontrollbatch, dokumenter feil/unntak og avklar hvilke treff som er godkjent for offentlig utstedelse. Dagens pilotliste tillater ikke automatisk publisering for alle treff.
 - [ ] Avtal driftsansvar, varsling og backup/gjenoppretting; dokumenter akseptansen før LOFT-76 lukkes.
