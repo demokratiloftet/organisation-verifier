@@ -86,3 +86,10 @@ tilbaketrekking; fixture-isolasjonen er også kontrollert.
 Statuspanelet er inspisert i Chromium med syntetiske køtall; norske tusenskiller,
 køtyper og tydelig merking av at gjennomløp også inkluderer mislykkede forsøk.
 Ingen nettleserfeil. Ingen offentlig prøvepublisering ble brukt i testene.
+
+Scheduler-spørringen ble også målt på en disponibel kopi av VPS-backupen med
+1 178 295 enheter, i en container uten nettverk. Den nye dekkende delindeksen
+returnerte samme 112 942 kandidater som den gamle: 43–67 ms over tre målinger,
+mot 191–817 ms med gammel indeks. Tallene inkluderer materialisering av resultatet
+og påvirkes av cache/GC; `EXPLAIN QUERY PLAN` bekrefter dekkende indeks. Kopien
+ble slettet med containeren; produksjonsdatabasen ble ikke brukt som testdatabase.

@@ -59,7 +59,8 @@ export class Store {
       );
     // Existing databases gain a small index over candidates, rather than scanning
     // a million organisations without websites on every scheduler tick.
-    this.db.exec(`CREATE INDEX IF NOT EXISTS organisations_recheck ON organisations(next_check)
+    this.db
+      .exec(`CREATE INDEX IF NOT EXISTS organisations_recheck_covering ON organisations(next_check,orgnr,did,host)
       WHERE host IS NOT NULL OR did IS NOT NULL;
       CREATE INDEX IF NOT EXISTS organisations_checked ON organisations(last_success)
       WHERE last_success IS NOT NULL`);
@@ -144,7 +145,7 @@ export class Store {
   schedule(now = Date.now()): void {
     this.db
       .prepare(
-        `INSERT INTO jobs(key,due,priority) SELECT orgnr,?,CASE WHEN did IS NULL THEN 0 ELSE 1 END FROM organisations INDEXED BY organisations_recheck
+        `INSERT INTO jobs(key,due,priority) SELECT orgnr,?,CASE WHEN did IS NULL THEN 0 ELSE 1 END FROM organisations INDEXED BY organisations_recheck_covering
       WHERE next_check<=? AND (host IS NOT NULL OR did IS NOT NULL) ON CONFLICT(key) DO NOTHING`,
       )
       .run(now, now);
