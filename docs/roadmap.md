@@ -9,7 +9,7 @@ og kontroller behandles fortløpende, uten utstedelse. Automatikken er merget i 
 
 ## Kort restliste
 
-- [ ] Velg en dedikert utstederkonto: PDS, handle/DID, ansvarlig og app-passord på VPS-en.
+- [x] Dedikert Demokratiloftet-utsteder på egen VPS: konto og app-passord er opprettet; intern pilot er valgt. Avtal driftsansvar.
 - [ ] Bekreft hva vi lover: domenetilknytning, navnekrav, delte domener og regler for tilbaketrekking. Fullfør angrepsgjennomgangen i LOFT-87.
 - [ ] Fullfør endringsavstemming og gjennomgå positive treff uten publisering. Full Brreg-import på VPS-en er gjort.
 - [ ] Publiser for en avgrenset pilot og verifiser at en annen klient kan lese recorden. Test omkjøring uten duplikater og faktisk tilbaketrekking.
@@ -25,9 +25,10 @@ inneholder `app.bsky.graph.verification`-records som peker på organisasjonenes 
 et vanlig innlegg i en sosial feed. Kontoen som verifiseres er en annen rolle.
 
 LOFT-76 foreslår Eurosky, men en egen Demokratiloftet-konto på vår VPS er også mulig.
-Privat eller offentlig tilgjengelighet må avklares. Publisheren støtter en konfigurert HTTPS-PDS,
-med låst utsteder-DID og eksplisitt pilotliste. Ingen utsteder er konfigurert på
-VPS-en per 13. oktober; offentlig publisering er avslått. App-passord legges i en
+Intern pilot på egen VPS er valgt 13. oktober. Utstederen er
+`verifikasjon.spaces-pds.dev.demokratiloftet.no`, DID
+`did:plc:ifkuegcojgr6lmmpzr5l2rai`. Se [privat utsteder](private-issuer.md).
+Publisheren låser utsteder-DID og pilotliste. Offentlig publisering er avslått. App-passord legges i en
 beskyttet fil på VPS-en, aldri i chat, Git eller klientkode.
 
 ## Public Suffix List og domeneregelen

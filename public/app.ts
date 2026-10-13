@@ -156,6 +156,7 @@ async function refresh() {
   const automation = (await automationResponse.json()) as {
     enabled: boolean;
     publishing: boolean;
+    privateIssuance: boolean;
     organisations: number;
     queued: number;
     retrying: number;
@@ -163,7 +164,14 @@ async function refresh() {
   };
   $('#automation-panel').hidden = !automation.enabled;
   automatic = automation.enabled;
-  text('#automation-mode', automation.publishing ? 'Utstedelse aktiv' : 'Kun forhåndsvisning');
+  text(
+    '#automation-mode',
+    automation.publishing
+      ? automation.privateIssuance
+        ? 'Intern pilot'
+        : 'Utstedelse aktiv'
+      : 'Kun forhåndsvisning',
+  );
   text(
     '#automation-summary',
     `${automation.organisations} ${automation.organisations === 1 ? 'organisasjon' : 'organisasjoner'}, ${automation.queued} kontroller i kø.`,
