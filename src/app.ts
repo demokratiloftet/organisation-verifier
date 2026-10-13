@@ -35,14 +35,14 @@ export async function createApp(options: AppOptions) {
   const store = new Store(options.database);
   const fixture = new FixtureSource(options.fixtureBase);
   let busy = false;
-  const exclusive = async (action: () => Promise<void>) => {
+  const exclusive = async <T>(action: () => Promise<T>): Promise<T> => {
     if (busy)
       throw Object.assign(new Error('En kontroll kjører allerede. Prøv igjen når den er ferdig.'), {
         statusCode: 409,
       });
     busy = true;
     try {
-      await action();
+      return await action();
     } finally {
       busy = false;
     }
@@ -136,15 +136,16 @@ export async function createApp(options: AppOptions) {
       },
     },
     async (request) => {
-      await exclusive(async () => {
+      const check = await exclusive(async () => {
         const network = await fixture.state(request.body.scenario);
         const check = store.saveCheck(await fixture.check(network));
         const service = new URL(options.fixtureBase);
         service.port = '2583';
         const publisher = new Publisher(store, await fixtureRemote(service, network.issuer));
         await publisher.apply(check);
+        return check;
       });
-      return { ok: true };
+      return { ok: true, check };
     },
   );
   app.post<{ Body: { orgnr: string } }>(
@@ -160,10 +161,8 @@ export async function createApp(options: AppOptions) {
       },
     },
     async (request) => {
-      await exclusive(async () => {
-        store.saveCheck(await liveCheck(request.body.orgnr));
-      });
-      return { ok: true };
+      const check = await exclusive(async () => store.saveCheck(await liveCheck(request.body.orgnr)));
+      return { ok: true, check };
     },
   );
   app.setErrorHandler((error, _request, reply) => {

@@ -2,9 +2,12 @@
 
 - 32 tester, typekontroll og bygg bestått lokalt. Lokal Node er 26.3.0; CI bruker låst Node 24.17.
 - Oppdatert produksjonsimage (Node 24.17): ekte isolert PDS-integrasjon, varig worker og nettverksisolasjon bestått i separat Compose-prosjekt.
-- 31 av 32 enhetstester bestod også i det minimale produksjonsimaget; TLS-testen krever `openssl`, som bare finnes i utviklings-/CI-miljøet. Den bestod lokalt. Dette er en manglende testavhengighet i runtime-imaget, ikke en verifisert CI-kjøring.
+- 31 av 32 enhetstester bestod også i det minimale produksjonsimaget; TLS-testen krever `openssl`, som bare finnes i utviklings-/CI-miljøet. Den bestod lokalt. Dette er en manglende testavhengighet i runtime-imaget. Hele CI-kjøringen på Node 24.17 bestod senere, inkludert TLS-testen.
 - Ingen kjente moderate eller høyere sårbarheter fra `pnpm audit` i app eller fixture.
 - PSL-regelen er testet med `co.uk`, `com.au`, `github.io` og `s3.amazonaws.com`, inkludert vern mot å hoppe til selve suffixet.
+- GitHub Check bestod for PR #6 og merge-commit `d0c31ca`, inkludert PDS-/worker-integrasjon, nettverksisolasjon og hemmelighetsskann.
+- VPS-import: 1 177 860 enheter. Endringsavstemming og kontrollkø startet med offentlig utstedelse deaktivert.
+- Nettleser: en manuell Devotta-kontroll beholdes når en simulert bakgrunnsoppdatering erstatter historikken.
 - VPS-en svarte med readiness 200 og Devotta ga en positiv manuell kontroll. Offentlig utstedelse er fortsatt deaktivert.
 
 Eldre observasjoner nedenfor er historikk: siden 11. oktober er VPS-en oppgradert,

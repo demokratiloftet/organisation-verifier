@@ -16,6 +16,8 @@ const $ = (selector: string) => element(selector, HTMLElement);
 let mode: Mode = 'fixture';
 let automatic = false;
 let state: State = { checks: [], publications: [] };
+// Keep the operator's result even when the batch adds newer checks to history.
+const selectedChecks: Partial<Record<Mode, SavedCheck>> = {};
 const labels: Record<Decision, string> = {
   match: 'Samsvar',
   no_match: 'Ingen kobling',
@@ -58,7 +60,7 @@ function field(label: string, value: string | undefined, mono = false) {
 }
 function render() {
   const checks = state.checks.filter((check) => check.mode === mode);
-  const check = checks[0];
+  const check = selectedChecks[mode] ?? checks[0];
   // A fixture restart creates new DIDs. Never present old records as current.
   const publications = state.publications.filter((p) =>
     mode === 'fixture'
@@ -161,7 +163,7 @@ async function refresh() {
   };
   $('#automation-panel').hidden = !automation.enabled;
   automatic = automation.enabled;
-  text('#automation-mode', automation.publishing ? 'Offentlig pilot' : 'Kun forhåndsvisning');
+  text('#automation-mode', automation.publishing ? 'Utstedelse aktiv' : 'Kun forhåndsvisning');
   text(
     '#automation-summary',
     `${automation.organisations} ${automation.organisations === 1 ? 'organisasjon' : 'organisasjoner'}, ${automation.queued} kontroller i kø.`,
@@ -208,6 +210,10 @@ async function run(path: string, body: Record<string, string>) {
           ? result.error
           : 'Kontrollen feilet.',
       );
+    if (typeof result === 'object' && result !== null && 'check' in result) {
+      const check = result.check as SavedCheck;
+      selectedChecks[check.mode] = check;
+    }
     await refresh();
     text('#notice', 'Kontrollen er ferdig.');
     $('#notice').className = 'success';
