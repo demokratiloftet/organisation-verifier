@@ -18,6 +18,7 @@ export async function startAutomation(store: Store, config: AutomationConfig): P
   let nextPoll = 0;
   let nextSchedule = 0;
   let nextPrune = 0;
+  let nextCatchupCheck = 0;
   const running = (async () => {
     while (!stopping) {
       try {
@@ -42,9 +43,12 @@ export async function startAutomation(store: Store, config: AutomationConfig): P
             .run(new Date(Date.now() - 90 * 86_400_000).toISOString());
           nextPrune = Date.now() + 86_400_000;
         }
-        // Finish the finite snapshot replay before spending time on domain lookups.
-        // Publication already waits for this same complete registry boundary.
-        if (store.get('import.phase') !== 'catchup') await workOnce(store, remote);
+        // Prioritize snapshot replay, but keep checks/withdrawals moving even if
+        // catch-up is slow or its source fails. New publication still waits for ready.
+        if (store.get('import.phase') !== 'catchup' || Date.now() >= nextCatchupCheck) {
+          await workOnce(store, remote);
+          nextCatchupCheck = Date.now() + 60_000;
+        }
         store.set('worker.heartbeat', new Date().toISOString());
         store.set('worker.error', '');
       } catch {
