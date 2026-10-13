@@ -1,14 +1,16 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { type AutomationConfig } from './config.js';
 import { startJetstream } from './jetstream.js';
-import { publicRemote } from './publisher.js';
+import { privateRemote, publicRemote } from './publisher.js';
 import { pollRegistry } from './registry.js';
 import { Store } from './store.js';
 import { workOnce } from './worker.js';
 
 export async function startAutomation(store: Store, config: AutomationConfig): Promise<() => Promise<void>> {
   if (!config.enabled) return async () => {};
-  const remote = config.issuer ? await publicRemote(config.issuer) : undefined;
+  const remote = config.issuer
+    ? await (config.issuer.private ? privateRemote : publicRemote)(config.issuer)
+    : undefined;
   if (config.issuer) for (const orgnr of config.issuer.orgnrs) store.enqueue(orgnr, Date.now(), 2);
   const stopStream = config.jetstream ? startJetstream(store, config.jetstream) : () => {};
   const controller = new AbortController();
@@ -40,7 +42,9 @@ export async function startAutomation(store: Store, config: AutomationConfig): P
             .run(new Date(Date.now() - 90 * 86_400_000).toISOString());
           nextPrune = Date.now() + 86_400_000;
         }
-        await workOnce(store, remote);
+        // Finish the finite snapshot replay before spending time on domain lookups.
+        // Publication already waits for this same complete registry boundary.
+        if (store.get('import.phase') !== 'catchup') await workOnce(store, remote);
         store.set('worker.heartbeat', new Date().toISOString());
         store.set('worker.error', '');
       } catch {

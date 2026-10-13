@@ -1,0 +1,20 @@
+# Own VPS only. The existing Spaces PDS/PLC volumes remain authoritative.
+services:
+  app:
+    environment:
+      PUBLIC_ISSUANCE_ENABLED: 'false'
+      PRIVATE_ISSUANCE_ENABLED: 'true'
+      ISSUER_PDS: http://spaces-pds:3000
+      ISSUER_DID: ${ISSUER_DID:?Set the private issuer DID}
+      ISSUER_IDENTIFIER: ${ISSUER_IDENTIFIER:?Set the private issuer handle}
+      PILOT_ORGNRS: ${PILOT_ORGNRS:?Set the approved pilot organisation numbers}
+      ISSUER_PASSWORD_FILE: /run/secrets/issuer_password
+    secrets: [issuer_password]
+    networks: [issuer]
+secrets:
+  issuer_password:
+    file: ./.runtime/issuer-password
+networks:
+  issuer:
+    external: true
+    name: server-infrastructure_private-demo

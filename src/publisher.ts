@@ -15,6 +15,7 @@ export interface RecordRemote {
   delete(rkey: string): Promise<void>;
 }
 export interface IssuerConfig {
+  private?: boolean;
   service: string;
   did: string;
   identifier: string;
@@ -22,8 +23,28 @@ export interface IssuerConfig {
   orgnrs: string[];
 }
 export async function publicRemote(config: IssuerConfig, transport = publicFetch): Promise<RecordRemote> {
+  return issuerRemote(config, transport, false);
+}
+
+// Explicit deployment-only endpoint, never derived from an organisation or DID document.
+export const privateIssuerService = 'http://spaces-pds:3000';
+export async function privateRemote(
+  config: IssuerConfig,
+  transport: typeof fetch = fetch,
+): Promise<RecordRemote> {
+  return issuerRemote(config, transport, true);
+}
+
+async function issuerRemote(
+  config: IssuerConfig,
+  transport: typeof fetch,
+  privateMode: boolean,
+): Promise<RecordRemote> {
   const service = new URL(config.service);
-  if (
+  if (privateMode) {
+    if (config.service !== privateIssuerService)
+      throw new Error('Private issuance requires the fixed internal Spaces PDS endpoint.');
+  } else if (
     service.protocol !== 'https:' ||
     service.username ||
     service.password ||
@@ -42,7 +63,7 @@ export async function publicRemote(config: IssuerConfig, transport = publicFetch
   const session = new CredentialSession(service, (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input);
     if (url.origin !== service.origin) throw new Error('Issuer PDS cannot change endpoints.');
-    return transport(input, { ...init, redirect: 'error' });
+    return transport(input, { ...init, signal: AbortSignal.timeout(15_000), redirect: 'error' });
   });
   await session.login({ identifier: config.identifier, password: config.password });
   session.pdsUrl = service;
