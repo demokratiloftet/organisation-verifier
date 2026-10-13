@@ -1,3 +1,5 @@
+> Historisk intern pilot. Den nye offentlige utstederen er dokumentert i [public-issuer.md](public-issuer.md).
+
 # Intern Demokratiloftet-utsteder
 
 Valgt av operatøren 13. oktober 2026: lagre verifikasjoner på egen VPS og bruke

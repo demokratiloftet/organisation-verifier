@@ -455,3 +455,45 @@ test('www and bare hosts share conflict checks and event/recheck scheduling, inc
     store.close();
   }
 });
+
+test('a regressed Jetstream sequence with newer evidence recovers and schedules rechecks; replay duplicates do not', () => {
+  const store = new Store(':memory:');
+  try {
+    store.upsertOrganisation(org);
+    store.db.exec('DELETE FROM jobs; UPDATE organisations SET next_check=9999999999999');
+    store.set('jetstream.cursor', '26940181548');
+    store.set('jetstream.time', '2026-10-13T12:28:59.458Z');
+    const event = (seq: number, witnessedAt: string) => ({
+      $type: 'message',
+      payload: {
+        $type: 'network.bsky.jetstream.subscribeEvents#identity',
+        seq,
+        witnessedAt,
+        did: positive.identity!.did,
+        identity: { handle: 'devotta.no' },
+      },
+    });
+    queueEvent(store, event(25989630252, '2026-10-13T12:28:58Z'));
+    assert.equal(store.get('jetstream.cursor'), '26940181548');
+    assert.equal(store.get('jetstream.gap'), undefined);
+    assert.equal(store.status().queued, 0);
+    queueEvent(store, event(25989630252, '2026-10-13T17:20:48.975Z'));
+    assert.equal(store.get('jetstream.gap'), 'SequenceReset');
+    assert.equal(store.get('jetstream.cursor'), '25989630252');
+    assert.equal(store.status().queued, 1);
+    assert.equal(
+      store.db.prepare('SELECT next_check FROM organisations WHERE orgnr=?').get(org.orgnr)!.next_check,
+      0,
+    );
+    const revision = store.db.prepare('SELECT revision FROM jobs WHERE key=?').get(org.orgnr)!.revision;
+    queueEvent(store, event(25989630252, '2026-10-13T17:20:48.975Z'));
+    assert.equal(
+      store.db.prepare('SELECT revision FROM jobs WHERE key=?').get(org.orgnr)!.revision,
+      revision,
+    );
+    queueEvent(store, event(25989630259, '2026-10-13T17:20:49Z'));
+    assert.equal(store.get('jetstream.cursor'), '25989630259');
+  } finally {
+    store.close();
+  }
+});
