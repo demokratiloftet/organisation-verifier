@@ -10,7 +10,7 @@ To moduser:
 Dette verifiserer **domenetilknytning**, ikke en persons juridiske fullmakt. Publisering gir heller ikke automatisk et synlig Bluesky-merke.
 
 Autentisert operatørside: [åpne verifikasjon](https://verifikasjon.demokratiloftet.no/).
-[Veiledning for kontoeiere: DNS, well-known og kontrollkrav](https://verifikasjon.demokratiloftet.no/veiledning).
+[Veiledning for kontoeiere: DNS, well-known og kontrollkrav](https://verifikasjon.demokratiloftet.no/?veiledning).
 [Enkel forklaring og drift](docs/internet.md).
 
 ## Start

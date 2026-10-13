@@ -47,7 +47,16 @@ test('internet operator UI requires HTTPS and authenticates every route before d
       },
     });
     const headers = { host: 'verifier.example:8443' };
-    for (const url of ['/', '/veiledning', '/app.js', '/api/state', '/api/automation', '/health', '/ready']) {
+    for (const url of [
+      '/',
+      '/veiledning',
+      '/?veiledning',
+      '/app.js',
+      '/api/state',
+      '/api/automation',
+      '/health',
+      '/ready',
+    ]) {
       const anonymous: LightMyRequestResponse = await app.inject({ url, headers });
       assert.equal(anonymous.statusCode, 401, url);
       assert.match(String(anonymous.headers['www-authenticate']), /^Basic /);
@@ -74,6 +83,9 @@ test('internet operator UI requires HTTPS and authenticates every route before d
     };
     assert.equal((await app.inject({ url: '/', headers: authenticated })).statusCode, 200);
     assert.equal((await app.inject({ url: '/veiledning', headers: authenticated })).statusCode, 200);
+    const guide = await app.inject({ url: '/?veiledning', headers: authenticated });
+    assert.equal(guide.statusCode, 200);
+    assert.match(guide.body, /_atproto.example.com/);
     const state = await app.inject({ url: '/api/state', headers: authenticated });
     assert.equal(state.statusCode, 200);
     assert(!state.body.includes(operatorCredentials));
