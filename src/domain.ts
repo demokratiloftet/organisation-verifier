@@ -1,9 +1,10 @@
 import { isValidHandle } from '@atproto/syntax';
+import { getDomain } from 'tldts';
 
 export type Mode = 'fixture' | 'live';
 export type Decision = 'match' | 'no_match' | 'needs_review' | 'unavailable';
 export type Scenario = 'valid' | 'name_changed' | 'website_changed' | 'no_account' | 'unavailable';
-export const policyVersion = 'www-fallback-v2';
+export const policyVersion = 'www-psl-v3';
 export interface Organisation {
   orgnr: string;
   name: string;
@@ -65,7 +66,11 @@ export function websiteHandle(website: string): string | undefined {
 export function withoutWww(host: string): string | undefined {
   if (!host.startsWith('www.')) return;
   const bare = host.slice(4);
-  return !bare.startsWith('www.') && isValidHandle(bare) ? bare : undefined;
+  // Never strip the registrable label: www.co.uk and www.github.io are accounts,
+  // not aliases for their public/private suffix. PSL is a boundary, not ownership proof.
+  return !bare.startsWith('www.') && isValidHandle(bare) && getDomain(bare, { allowPrivateDomains: true })
+    ? bare
+    : undefined;
 }
 
 // Treat the two supported spellings together for shared-domain checks and events.
@@ -74,7 +79,8 @@ export function hostVariants(host: string): string[] {
     const bare = withoutWww(host);
     return bare ? [host, bare] : [host];
   }
-  return isValidHandle(`www.${host}`) ? [host, `www.${host}`] : [host];
+  const www = `www.${host}`;
+  return isValidHandle(www) && withoutWww(www) === host ? [host, www] : [host];
 }
 
 export function claimedHandle(aliases: string[] = []): string | undefined {

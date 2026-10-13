@@ -1,6 +1,16 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { claimedHandle, decide, websiteHandle } from '../src/domain.js';
+import { claimedHandle, decide, websiteHandle, hostVariants } from '../src/domain.js';
+
+test('shared-host grouping respects public and private suffix boundaries in both directions', () => {
+  for (const suffix of ['co.uk', 'com.au', 'github.io', 's3.amazonaws.com']) {
+    assert.deepEqual(hostVariants(suffix), [suffix]);
+    assert.deepEqual(hostVariants(`www.${suffix}`), [`www.${suffix}`]);
+    const host = `company.${suffix}`;
+    assert.deepEqual(hostVariants(host), [host, `www.${host}`]);
+    assert.deepEqual(hostVariants(`www.${host}`), [`www.${host}`, host]);
+  }
+});
 
 test('only unambiguous registered hostnames become handles', () => {
   assert.equal(websiteHandle('https://WWW.fjordverk.no/'), 'www.fjordverk.no');

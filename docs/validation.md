@@ -1,4 +1,17 @@
-# Verifisert 11. oktober 2026
+# Kontrollert 13. oktober 2026
+
+- 32 tester, typekontroll og bygg bestått lokalt. Lokal Node er 26.3.0; CI bruker låst Node 24.17.
+- Oppdatert produksjonsimage (Node 24.17): ekte isolert PDS-integrasjon, varig worker og nettverksisolasjon bestått i separat Compose-prosjekt.
+- 31 av 32 enhetstester bestod også i det minimale produksjonsimaget; TLS-testen krever `openssl`, som bare finnes i utviklings-/CI-miljøet. Den bestod lokalt. Dette er en manglende testavhengighet i runtime-imaget, ikke en verifisert CI-kjøring.
+- Ingen kjente moderate eller høyere sårbarheter fra `pnpm audit` i app eller fixture.
+- PSL-regelen er testet med `co.uk`, `com.au`, `github.io` og `s3.amazonaws.com`, inkludert vern mot å hoppe til selve suffixet.
+- VPS-en svarte med readiness 200 og Devotta ga en positiv manuell kontroll. Offentlig utstedelse er fortsatt deaktivert.
+
+Eldre observasjoner nedenfor er historikk: siden 11. oktober er VPS-en oppgradert,
+HTTPS/operatørinnlogging innført og Devotta har fått registrert hjemmeside og positiv kontroll.
+Gjeldende restliste står i [roadmap.md](roadmap.md).
+
+## Verifisert 11. oktober 2026
 
 Automatikken er kontrollert lokalt. Den eksisterende VPS-demoen er ikke oppgradert,
 og offentlig publisering er fortsatt avslått.

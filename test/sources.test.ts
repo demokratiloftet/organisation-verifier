@@ -73,6 +73,35 @@ test('www fallback never bypasses a confirmed account, name mismatch or lookup f
   assert.equal(wrongDomain.decision, 'no_match');
 });
 
+test('multi-label and private suffixes retain the organisation boundary during www fallback', async () => {
+  for (const handle of ['company.co.uk', 'company.com.au', 'company.github.io', 'company.no']) {
+    const calls: string[] = [];
+    const check = await liveCheck(
+      org.orgnr,
+      async () => ({ ...org, website: `www.${handle}` }),
+      async (candidate) => {
+        calls.push(candidate);
+        return candidate === handle ? account(candidate) : undefined;
+      },
+    );
+    assert.deepEqual(calls, [`www.${handle}`, handle]);
+    assert.equal(check.decision, 'match');
+  }
+  for (const website of ['www.co.uk', 'www.com.au', 'www.github.io', 'www.s3.amazonaws.com']) {
+    const calls: string[] = [];
+    const check = await liveCheck(
+      org.orgnr,
+      async () => ({ ...org, website }),
+      async (candidate) => {
+        calls.push(candidate);
+        return candidate === website ? undefined : account(candidate);
+      },
+    );
+    assert.deepEqual(calls, [website]);
+    assert.equal(check.decision, 'no_match');
+  }
+});
+
 test('no arbitrary parent fallback, invalid URL fallback, or lookup of a deleted organisation', async () => {
   for (const website of [
     'team.devotta.no',

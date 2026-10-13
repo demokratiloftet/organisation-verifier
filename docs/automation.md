@@ -10,7 +10,8 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 - Vi bekrefter domenetilknytning til en Brreg-enhet, ikke juridisk fullmakt.
 - Registrert host prøves først. Hvis ingen konto er toveis bekreftet der, kan én
   innledende `www.` fjernes og domenet kontrolleres på nytt. Nettverksfeil eller
-  navneavvik gir ikke dette unntaket. Andre foreldredomener og navneunntak støttes ikke.
+  navneavvik gir ikke dette unntaket. Public Suffix List hindrer fallback til et offentlig eller privat suffix.
+  Andre foreldredomener og navneunntak støttes ikke.
 - Profilnavnet må samsvare etter Unicode-, mellomrom- og bokstavnormalisering.
 - Flere enheter med samme host, med eller uten `www`, gir manuell vurdering. Nettsteder med
   en sti telles med ved konfliktkontroll, selv om de ikke selv kan verifiseres.
@@ -25,16 +26,16 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 - Utstedelse begrenses til en eksplisitt pilotliste. Fjerner man en enhet fra
   listen, trekkes tidligere utstedelse tilbake ved neste kontroll. Å slå av
   offentlig utstedelse stopper alle writes; det tilbakekaller ikke automatisk.
-- Operatørtilgang er fortsatt SSH/loopback. Offentlig operatørgrensesnitt og flere
-  tilgangsroller er ikke innført; det er ikke nødvendig for denne driftsmodellen.
+- VPS-en har HTTPS og en felles operatørinnlogging. Flere tilgangsroller er ikke innført.
 
-Policyversjonen `www-fallback-v2` lagres med nye kontroller. Ingen prøveidentiteter
+Policyversjonen `www-psl-v3` lagres med nye kontroller. Ingen prøveidentiteter
 kan passere den offentlige publisheren. En offentlig utstederkonto og en konto
 som skal verifiseres er to ulike roller.
 
-**Devotta som kandidat:** Brreg-oppslag 11. oktober 2026 fant DEVOTTA AS,
-`922669708`, uten registrert hjemmeside. Det er en nyttig negativ kontroll, men
-kan ikke gi et positivt treff før registergrunnlaget og atproto-kontoen støtter det.
+**Devotta som kandidat:** Et faktisk oppslag 13. oktober 2026 bekreftet DEVOTTA AS,
+`922669708`, med registrert hjemmeside `www.devotta.no` og toveis koblet konto
+`devotta.no` på Eurosky. Profilnavnet samsvarer. Dette er en positiv manuell
+kontroll, ikke en offentlig utstedelse eller fullregisterkontroll av delte domener.
 
 ## Start automatikk uten offentlig publisering
 

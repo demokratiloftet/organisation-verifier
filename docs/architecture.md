@@ -10,7 +10,7 @@ Registrert hjemmeside er en påstand i Brreg. Toveis handle/DID-kontroll viser k
 
 ```mermaid
 flowchart LR
-  Operator[Operatør i nettleser] -->|loopback eller SSH| App[Fastify + enkel webside]
+  Operator[Operatør i nettleser] -->|HTTPS + operatørinnlogging| App[Fastify + enkel webside]
   App --> Sources[Kildeadaptere]
   Sources -->|HTTPS, kun lesing| Brreg[Brreg API]
   Sources -->|sikker resolver + HTTPS| Public[Offentlige handles, DID og PDS]
@@ -28,17 +28,17 @@ flowchart LR
   Publisher -->|bare fixture-modus| PDS
 ```
 
-Appen har utgående tilgang for offentlige oppslag. Fixture-containeren har bare et internt Docker-nett. Ingen PDS-/PLC-porter publiseres på verten. Webappen binder bare `127.0.0.1:3012` på verten. Eksisterende tjenester på VPS-en brukes ikke eller endres.
+Appen har utgående tilgang for offentlige oppslag. Fixture-containeren har bare et internt Docker-nett. Ingen PDS-/PLC-porter publiseres på verten. Lokal standard binder `127.0.0.1:3012`; VPS-en bruker autentisert HTTPS på port 8443. Eksisterende tjenester på VPS-en brukes ikke eller endres.
 
-| Fil                  | Ansvar                                                               |
-| -------------------- | -------------------------------------------------------------------- |
-| `src/domain.ts`      | URL/handle-regler, første gyldige DID-alias, ren beslutningsfunksjon |
-| `src/sources.ts`     | Brreg API, offentlig identitetsoppløsning og separat fixture-adapter |
-| `src/publisher.ts`   | Lexicon-validert record, stabil TID, gjenfinning og sletting         |
-| `src/store.ts`       | SQLite, varig kontrollgrunnlag og publiseringsstatus                 |
-| `src/app.ts`         | Validerte operatørendepunkter, én samtidig kjøring, webressurser     |
-| `fixture/server.mjs` | Offisiell `@atproto/dev-env`: lokal PLC og PDS med fiktive kontoer   |
-| `public/`            | HTML, CSS og nettleser-JavaScript uten eksterne ressurser            |
+| Fil                 | Ansvar                                                               |
+| ------------------- | -------------------------------------------------------------------- |
+| `src/domain.ts`     | URL/handle-regler, første gyldige DID-alias, ren beslutningsfunksjon |
+| `src/sources.ts`    | Brreg API, offentlig identitetsoppløsning og separat fixture-adapter |
+| `src/publisher.ts`  | Lexicon-validert record, stabil TID, gjenfinning og sletting         |
+| `src/store.ts`      | SQLite, varig kontrollgrunnlag og publiseringsstatus                 |
+| `src/app.ts`        | Validerte operatørendepunkter, én samtidig kjøring, webressurser     |
+| `fixture/server.ts` | Offisiell `@atproto/dev-env`: lokal PLC og PDS med fiktive kontoer   |
+| `public/`           | HTML, CSS og nettleser-TypeScript uten eksterne ressurser            |
 
 ## Kontrollflyten
 
@@ -102,7 +102,7 @@ En omkjøring gjenbruker TID og `createdAt`. Ukjent utfall etter et nettverksbru
 
 ## Valgt demopolicy
 
-- Registrert vertsnavn prøves først. Uten bekreftet konto prøves domenet uten én innledende `www.`. Nettverksfeil gir ikke fallback. Vi hopper ikke fra andre underdomener til foreldredomener.
+- Registrert vertsnavn prøves først. Uten bekreftet konto prøves domenet uten én innledende `www.`. Nettverksfeil gir ikke fallback. PSL (inkludert private suffixes) hindrer at `www`-fallback ender på selve suffixet. Vi hopper ikke fra andre underdomener til foreldredomener.
 - Sti, query, fragment, brukerinformasjon eller egen port krever vurdering.
 - Første syntaktisk gyldige `at://`-alias i DID-dokumentet må være handle-kandidaten.
 - Profilnavnet må samsvare med registernavnet etter normalisering av Unicode, mellomrom og store/små bokstaver. Dette er et konservativt demovalg, ikke en avklart forretningsregel.

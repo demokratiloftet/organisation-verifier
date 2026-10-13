@@ -56,7 +56,8 @@ Bakgrunnstjenesten er nå implementert: strømmet registerimport, varig jobbkø,
 Brreg-endringer, Jetstream v2, periodiske kontroller og en avgrenset offentlig
 publisher. Alt er avslått som standard. Se [automatikk, foreløpig policy og
 pilotoppsett](docs/automation.md) for oppstart og gjenstående aktivering.
-Offentlig utstederkonto, positiv pilotorganisasjon og policy må fortsatt bekreftes.
+Devotta gir en positiv manuell kontroll. Offentlig utstederkonto, fullregisterkjøring
+og pilotakseptanse gjenstår; se [kort restliste for LOFT-76](docs/roadmap.md).
 
 ![Kontrollgrunnlag og publisering i demoen](docs/media/demo-overview.png)
 
@@ -68,7 +69,6 @@ Actions er låst til commit-SHA-er. Se [sikkerhetspolicy](SECURITY.md).
 Fixture er oppdatert til dev-env 0.6.14 med samme sikkerhetsoverstyringer som den
 isolerte `local-sandbox`; bare testede PDS/PLC-funksjoner skal brukes.
 
-Operatørappen er tilgjengelig på loopback/SSH og skal ikke publiseres uten en
-egen autentiserings- og tilgangsmodell. Live-oppslag er kun lesing. Nettverksfeil
+Operatørappen bruker loopback lokalt og HTTPS med operatørinnlogging på VPS-en. Live-oppslag er kun lesing. Nettverksfeil
 skal aldri gi en ny positiv verifikasjon. Løpende VPS-oppdateringer er beskrevet i
 [driftsveiledningen](docs/operations.md).
