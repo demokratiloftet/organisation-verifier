@@ -27,7 +27,7 @@ Begge filer holdes utenfor Git, logger, nettleser og lokale arbeidsmaskiner.
 `private-issuer.json` inneholder bare kontoens ikke-hemmelige metadata.
 
 `compose.private-issuer.yaml` er et eksplisitt tillegg til automatikk og eksisterende
-HTTPS/opera­tørkonfigurasjon. Det kobler bare verifier-appen til det eksisterende
+HTTPS/operatørkonfigurasjon. Det kobler bare verifier-appen til det eksisterende
 `server-infrastructure_private-demo`-nettet. PDS, PLC, apper og datavolumer
 opprettes ikke på nytt. På managed VPS brukes den kontrollerte, sammenslåtte
 konfigurasjonen i `/root/organisation-verifier/compose.yaml` og gjeldende image-overlay.
@@ -70,3 +70,30 @@ organisasjonsverifikasjon på grunnlag av tekst/navn. En reell kontokobling krev
 UI-merket i social/kalender er en egen integrasjon og er ikke implementert her.
 Oppsettet gjør utstedelse og intern lesing mulig. Kalenderens eksisterende
 arrangørfullmakter er en annen type kontroll og beholdes uendret.
+
+## Kontrollert på VPS 13. oktober 2026
+
+Intern pilot er aktivert med offentlig utstedelse avslått. Devottas ferske
+Brreg-/domene-/navnekontroll og delte-domener-kontroll ga samsvar etter full
+registeravstemming. Arbeideren lagret:
+
+```text
+at://did:plc:ifkuegcojgr6lmmpzr5l2rai/app.bsky.graph.verification/3mxqxzhcgmk2h
+subject: did:plc:f7vvzsi3zfydiswbw2uejxec
+handle: devotta.no
+displayName: Devotta AS
+```
+
+En ny automatisk kontroll beholdt samme record-nøkkel og createdAt, uten duplikat.
+Begge appenes kjørende backend-containere leste denne recorden direkte fra PDS-en,
+uten utstederens passord. Dette er en test av intern lesing, ikke implementert
+merkevisning i appenes UI. Offentlig XRPC-lesing fra Spaces-PDS-host ble avvist
+med 404; verifier uten operatørinnlogging ga 401. Autentisert HTTPS og readiness
+passerte. PDS, social, kalender og datavolumene ble beholdt; bare verifier-appen
+ble restartet. Konfigurasjons- og SQLite-backup ligger på VPS-en.
+
+PR #8 bestod 34 tester, typecheck, build, formatering, sårbarhets-/hemmelighetssjekk,
+ekte isolert PDS-livssyklus, worker-test og nettverksisolasjon. Utstedelsen på VPS
+bruker samme policy/livssyklus; bare utstedertransporten er intern. Full første
+Brreg-kontrollbatch kjører fortsatt. Automatisk GitHub-deploy er fortsatt pauset
+etter tidligere SSH-tidsavbrudd; denne utrullingen ble gjort manuelt.

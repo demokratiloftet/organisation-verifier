@@ -5,11 +5,12 @@ krever en full registergjennomgang og faktisk offentlig publisering. Kode og en
 positiv manuell kontroll er ikke alene nok til å lukke oppgaven.
 
 Fullimport er kjørt på VPS-en (1 177 860 enheter i snapshotet). Registerendringer
-og kontroller behandles fortløpende, uten utstedelse. Automatikken er merget i PR #6.
+og kontroller behandles fortløpende. Intern utstedelse er aktivert for Devotta;
+andre organisasjoner kontrolleres uten utstedelse. Automatikken er merget i PR #6.
 
 ## Kort restliste
 
-- [x] Dedikert Demokratiloftet-utsteder på egen VPS: konto og app-passord er opprettet; intern pilot er valgt. Avtal driftsansvar.
+- [x] Dedikert Demokratiloftet-utsteder på egen VPS: konto og app-passord er opprettet; intern pilot er valgt. Driftsansvar står på restlisten nedenfor.
 - [ ] Bekreft hva vi lover: domenetilknytning, navnekrav, delte domener og regler for tilbaketrekking. Fullfør angrepsgjennomgangen i LOFT-87.
 - [ ] Fullfør endringsavstemming og gjennomgå positive treff uten publisering. Full Brreg-import på VPS-en er gjort.
 - [ ] Publiser for en avgrenset pilot og verifiser at en annen klient kan lese recorden. Test omkjøring uten duplikater og faktisk tilbaketrekking.
