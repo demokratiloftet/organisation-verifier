@@ -118,7 +118,7 @@ export interface RegistryUpdate {
 export async function fetchUpdates(cursor: number, since: string): Promise<RegistryUpdate[]> {
   const url = new URL(`${registryBase}/oppdateringer/enheter`);
   url.search = new URLSearchParams({
-    size: '20',
+    size: '100',
     sort: 'id,ASC',
     ...(cursor ? { oppdateringsid: String(cursor + 1) } : { dato: since }),
   }).toString();
@@ -151,13 +151,33 @@ export function queueUpdates(
   organisations: Organisation[] = [],
 ): void {
   store.transaction(() => {
-    for (const organisation of organisations) store.upsertOrganisation(organisation);
-    let cursor = Number(store.get('registry.cursor') ?? 0);
-    for (const update of updates) {
-      if (update.oppdateringsid <= cursor) continue;
-      store.enqueue(update.organisasjonsnummer);
+    const cursor = Number(store.get('registry.cursor') ?? 0);
+    const pending = updates.filter((update) => update.oppdateringsid > cursor);
+    const latest = [...new Map(pending.map((update) => [update.organisasjonsnummer, update])).values()];
+    const changed = new Set<string>();
+    for (const org of organisations) {
+      const previous = store.organisation(org.orgnr);
+      const known = store.db.prepare('SELECT did FROM organisations WHERE orgnr=?').get(org.orgnr)?.did;
+      if (
+        (!previous ||
+          previous.name !== org.name ||
+          previous.website !== org.website ||
+          previous.deleted !== org.deleted) &&
+        (org.website || previous?.website || known)
+      )
+        changed.add(org.orgnr);
+      store.upsertOrganisation(org);
+    }
+    for (const update of latest) {
+      // Employee counts and other unrelated changes need no identity lookup.
+      // A removed website still needs a check, so old verification is withdrawn.
+      if (
+        !organisations.length ||
+        changed.has(update.organisasjonsnummer) ||
+        update.endringstype === 'Fjernet'
+      )
+        store.enqueue(update.organisasjonsnummer);
       if (update.endringstype === 'Fjernet') {
-        // Keep only an identifier/tombstone for withdrawal, not the removed registry entry.
         store.upsertOrganisation({
           orgnr: update.organisasjonsnummer,
           name: update.organisasjonsnummer,
@@ -169,9 +189,8 @@ export function queueUpdates(
           )
           .run(update.organisasjonsnummer);
       }
-      cursor = update.oppdateringsid;
     }
-    store.set('registry.cursor', String(cursor));
+    store.set('registry.cursor', String(pending.at(-1)?.oppdateringsid ?? cursor));
     store.set('registry.lastPoll', new Date().toISOString());
   });
 }
@@ -189,10 +208,11 @@ export async function pollRegistry(
     store.set('import.phase', 'catchup');
     // Fetch current entries before advancing the cursor or allowing publication.
     const organisations: Organisation[] = [];
-    for (let offset = 0; offset < updates.length; offset += 4)
+    const unique = [...new Map(updates.map((update) => [update.organisasjonsnummer, update])).values()];
+    for (let offset = 0; offset < unique.length; offset += 4)
       organisations.push(
         ...(await Promise.all(
-          updates
+          unique
             .slice(offset, offset + 4)
             .map((update) =>
               update.endringstype === 'Fjernet'

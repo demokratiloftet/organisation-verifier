@@ -60,3 +60,29 @@ Gjennomført på macOS med Node 24.17 og Docker, og på prosjektets Linux VPS.
 
 Dette var en demonstrasjon av publiseringsflyten. Status for videre implementasjon
 og gjenstående driftsavklaringer står i [oppgavelisten](roadmap.md).
+
+## Effektiv automatikk, 13. oktober 2026
+
+Før endringen viste VPS-en 1 178 294 registerenheter og omtrent 120 700 jobber i kø,
+inkludert 6 555 DID-oppslag. Av 113 876 enheter med registrert host hadde bare 423
+minst én fullført kontroll. Siste times historikk hadde 1 578 utilgjengelige svar,
+117 negative svar (109 uten hjemmeside), to vurderingssaker og tre positive
+kontroller. Det er **kontrollforsøk**, ikke unike verifikasjoner. Retry-prioritering
+og seriell behandling hindret førstegangsskanningen i å komme videre.
+
+Lokal reproducerbar måling med `node dist/scripts/benchmark-worker.js`: 16 jobber,
+1,2 sekunders simulert kildelatens, ekte SQLite-kø/leases, ingen ekstern trafikk.
+Én arbeider brukte 20 086 ms; fire brukte 5 751 ms (3,49 ganger gjennomløpet).
+Dette sammenligner den nye poolens innstillinger, ikke hele den gamle tjenesten
+eller offentlig API-kapasitet.
+
+Regresjonstester dekker avgrenset samtidighet, uavhengig registerpoll, tømming ved
+stopp, rettferdig kø, registry-cache/fersk positiv kontroll, relevant filtrering
+og deduplisering av endringer, Brreg 410, forskjellige retry-grenser og utdaterte
+resultater. En domenekonflikt som oppstår under publisherens remote-lesing hindrer
+ny put. Ekte isolert PDS bekrefter publisering, omkjøring uten duplikat, restart og
+tilbaketrekking; fixture-isolasjonen er også kontrollert.
+
+Statuspanelet er inspisert i Chromium med syntetiske køtall; norske tusenskiller,
+køtyper og tydelig merking av at gjennomløp også inkluderer mislykkede forsøk.
+Ingen nettleserfeil. Ingen offentlig prøvepublisering ble brukt i testene.

@@ -9,7 +9,7 @@ To moduser:
 
 Dette verifiserer **domenetilknytning**, ikke en persons juridiske fullmakt. Publisering gir heller ikke automatisk et synlig Bluesky-merke.
 
-Autentisert VPS-demo: [åpne verifikasjon](https://verifikasjon.dev.demokratiloftet.no:8443/).
+Autentisert operatørside: [åpne verifikasjon](https://verifikasjon.demokratiloftet.no/).
 [Enkel forklaring og drift](docs/internet.md).
 
 ## Start
@@ -56,8 +56,9 @@ Bakgrunnstjenesten er nå implementert: strømmet registerimport, varig jobbkø,
 Brreg-endringer, Jetstream v2, periodiske kontroller og en avgrenset offentlig
 publisher. Alt er avslått som standard. Se [automatikk, foreløpig policy og
 pilotoppsett](docs/automation.md) for oppstart og gjenstående aktivering.
-Devotta gir en positiv manuell kontroll. Offentlig utstederkonto, fullregisterkjøring
-og pilotakseptanse gjenstår; se [kort restliste for LOFT-76](docs/roadmap.md).
+Den offentlige piloten utsteder for Devotta fra Demokratiloftets egen konto; se
+[utsteder og bekreftet pilot](docs/public-issuer.md). Fullregisteret er importert,
+men førstegangskontrollene pågår. Se [kort restliste for LOFT-76](docs/roadmap.md).
 
 ![Kontrollgrunnlag og publisering i demoen](docs/media/demo-overview.png)
 

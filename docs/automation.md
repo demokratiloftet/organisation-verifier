@@ -1,7 +1,7 @@
 # Automatisk verifikasjon
 
-Implementasjonen bruker samme Fastify-prosess og SQLite-database som demoen. Én
-bakgrunnsarbeider behandler varige jobber. Ingen Redis, ny tjeneste eller
+Implementasjonen bruker samme Fastify-prosess og SQLite-database som demoen. En avgrenset
+pool behandler varige jobber, med fire samtidige kontroller som standard. Ingen Redis, ny tjeneste eller
 innloggingsplattform er nødvendig. Demonstrasjonsfanen og manuelle Brreg-oppslag
 beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 
@@ -18,8 +18,9 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 - Positive kontroller gjentas daglig; andre kjente domener ukentlig. Register- og
   kontohendelser kølegger tidligere kontroll. Identitetshendelser uten handle og
   nye aktive kontoer får først et DID-oppslag for å finne relevante enheter.
-- Usikre oppslag prøves igjen etter 30 sekunder, deretter eksponentielt opptil én
-  time. Etter syv dager uten en fullført kontroll trekkes eksisterende verifikasjon
+- Usikre oppslag prøves igjen etter 30 sekunder, deretter eksponentielt. Kjente
+  kontoer og pilot-/publiseringsjobber har maksimalt én time mellom forsøk; andre
+  vedvarende feil har maksimalt ett døgn. Nye relevante hendelser fremskynder kontrollen. Etter syv dager uten en fullført kontroll trekkes eksisterende verifikasjon
   tilbake. En vellykket kontroll kan utstede på nytt. Dette er en foreslått policy.
 - Ny utstedelse krever komplett import, ferdig registeravstemming og registerpoll
   innen fem minutter. Tilbaketrekking kan fortsette under registerfeil.
@@ -84,14 +85,55 @@ innhold hentes før jobb og cursor lagres atomisk. Først når endringsstrømmen
 innhentet, kan offentlig utstedelse begynne. Organisasjoner uten hjemmeside
 indekseres, men trenger ingen innledende atproto-kontroll.
 
-Dette er en seriell verifier med inntil fire samtidige Brreg-oppslag under
-registeravstemming. Endringsjobber og rechecks av kjente kontoer prioriteres foran
-førstegangsskanning. En landsdekkende gjennomgang tar tid; mål køalder og faktisk
-gjennomløp før det avtales noen tidsfrist. Det er ingen påstand om at hele Norges
-register allerede er identitetskontrollert eller lasttestet mot offentlige API-er.
-Selve importen er prøvd lokalt med den offisielle filen: 1 177 715 enheter,
-114 124 kølagte kontroller, cirka tre minutter inkludert nedlasting og 524 MiB
-maksimal RSS. Dette måler import, ikke gjennomløp for nettverkskontrollene.
+## Effektiv behandling og målbar fremdrift
+
+- Registerpoll og kontrollpool kjører uavhengig. En treg nettside blokkerer ikke
+  registeroppdateringen, og avstemming begrenser ikke lenger kontroller til én per
+  minutt. Utstedelse venter fortsatt på komplett og ferskt register.
+- Standard er fire samtidige jobber. `WORKER_CONCURRENCY` kan settes til 1–8 i
+  appens miljø; uansett startes høyst fire jobber per sekund totalt. Alle oppslag
+  beholder sine tidsavbrudd og SSRF-grenser.
+- Hver fjerde ledige køplass reserveres til førstegangsskanning når det er etterslep.
+  Eksplisitte pilotjobber går først. Endringsjobber og retries kan ikke holde hele
+  førstegangskøen tilbake. Leases hindrer at to arbeidere behandler samme jobb.
+- Når registeret er komplett og nylig avstemt, brukes lokalindeksen til
+  kandidatkontroll. Dette sparer ett Brreg-oppslag for hver negativ kandidat.
+  Delte domener holdes tilbake før nettverksoppslag. Positive kandidater kontrolleres
+  på nytt mot fersk Brreg-enhet og fersk identitet. Kjente kontoer, pilotjobber og
+  eksisterende utstedelser får alltid ferske oppslag. Manuelle kontroller er uendret.
+- Brreg-endringer hentes i sider på 100, med høyst fire samtidige enhetsoppslag.
+  Flere hendelser for samme enhet på én side krever bare ett oppslag. Endringer
+  uten betydning for navn, hjemmeside eller sletting starter ingen ny kontroll.
+  Organisasjoner uten hjemmeside/kjent konto trenger ingen identitetskontroll.
+- Scheduler bruker en delindeks over organisasjoner med host eller DID. Den
+  undersøker ikke alle enheter uten nettside hvert minutt. Indeksen opprettes
+  også på eksisterende databaser, uten å endre eller fjerne data.
+- Register-/kontohendelser som kommer under en kontroll gjør resultatet foreldet.
+  Det forkastes før lagring/publisering, og nyere køversjon beholdes.
+
+Operatørsiden skiller mellom registerstørrelse, registrerte domener, organisasjoner
+med minst én fullført kontroll (også uten treff), organisasjonskø og kontooppslag fra Jetstream. Den
+viser faktisk behandlede jobber siste minutt, **inkludert mislykkede forsøk**.
+Dette tallet er ikke antall vellykkede verifikasjoner eller en ferdigdato.
+`worker.completed`, `worker.meanDurationMs`, `worker.active` og
+`worker.completedLastMinute` i status-API-et gjelder inneværende prosess; kø og
+kontrollhistorikk overlever restart.
+
+Landsdekkende første gjennomgang er fortsatt en bakgrunnsjobb. Ingen ny fullfil
+lastes ned ved vanlig restart eller sidevisning. Den opprinnelige strømmeimporten
+ble prøvd lokalt med 1 177 715 enheter, 114 124 kølagte kontroller, cirka tre minutter
+inkludert nedlasting og 524 MiB maksimal RSS. Det måler import, ikke nettverkskontroller.
+
+En reproducerbar lokal måling uten offentlige nettverkskall:
+
+```sh
+pnpm build
+node dist/scripts/benchmark-worker.js
+```
+
+Målingen sammenligner én og fire arbeidere med 16 jobber og 1,2 sekunders simulert
+kildelatens, inklusive ekte kø/leases og felles frekvensgrense. Den er ingen
+lasttest av Brreg, DNS eller PDS. Se [valideringsloggen](validation.md) for resultater.
 
 ## Slå på en avgrenset offentlig pilot
 

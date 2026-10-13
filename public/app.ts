@@ -92,7 +92,7 @@ function render() {
           field('KONTOENS DID', check.identity?.did, true),
           field(
             'KONTROLLERT',
-            `${time(check.checkedAt)} · ${mode === 'fixture' ? 'syntetisk registergrunnlag' : 'Brreg API'}`,
+            `${time(check.checkedAt)} · ${mode === 'fixture' ? 'syntetisk registergrunnlag' : check.registrySource === 'index' ? 'oppdatert Brreg-indeks' : 'Brreg API'}`,
           ),
         ]
       : []),
@@ -160,6 +160,9 @@ async function refresh() {
     organisations: number;
     queued: number;
     retrying: number;
+    discovery: number;
+    withWebsite: number;
+    completed: number;
     progress: Record<string, string>;
   };
   $('#automation-panel').hidden = !automation.enabled;
@@ -174,7 +177,11 @@ async function refresh() {
   );
   text(
     '#automation-summary',
-    `${automation.organisations} ${automation.organisations === 1 ? 'organisasjon' : 'organisasjoner'}, ${automation.queued} kontroller i kø.`,
+    `${automation.organisations.toLocaleString('nb-NO')} organisasjoner i registeret, ${automation.withWebsite.toLocaleString('nb-NO')} med registrert domene. ${automation.completed.toLocaleString('nb-NO')} organisasjoner har minst én fullført kontroll, også de uten treff.`,
+  );
+  text(
+    '#automation-throughput',
+    `${(automation.queued - automation.discovery).toLocaleString('nb-NO')} organisasjonskontroller og ${automation.discovery.toLocaleString('nb-NO')} kontooppslag i kø. ${automation.progress['worker.completedLastMinute'] ?? '0'} jobber behandlet siste minutt (inkludert mislykkede forsøk). Inntil ${automation.progress['worker.concurrency'] ?? '1'} samtidige jobber.`,
   );
   const phases: Record<string, string> = {
     loading: 'Registerimport pågår',

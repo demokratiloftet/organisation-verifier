@@ -497,3 +497,166 @@ test('a regressed Jetstream sequence with newer evidence recovers and schedules 
     store.close();
   }
 });
+
+test('initial scanning makes progress under a continuous event backlog, while pilots stay first', () => {
+  const store = new Store(':memory:');
+  try {
+    store.enqueue('100000000', 0, 0);
+    for (let i = 1; i <= 12; i++) store.enqueue(String(100000000 + i), 0, 1);
+    for (let i = 0; i < 3; i++) {
+      const job = store.claim()!;
+      assert.notEqual(job.key, '100000000');
+      store.finish(job);
+    }
+    assert.equal(store.claim()!.key, '100000000');
+    store.enqueue(org.orgnr, 0, 2);
+    assert.equal(store.claim()!.key, org.orgnr);
+  } finally {
+    store.close();
+  }
+});
+
+test('registry batches fetch each organisation once and ignore changes unrelated to verification', async () => {
+  const store = new Store(':memory:');
+  try {
+    ready(store);
+    store.set('registry.since', positive.checkedAt);
+    store.upsertOrganisation(org);
+    store.db.exec('DELETE FROM jobs');
+    let fetches = 0;
+    await pollRegistry(
+      store,
+      async () => [
+        { oppdateringsid: 1, organisasjonsnummer: org.orgnr, endringstype: 'Endring' },
+        { oppdateringsid: 2, organisasjonsnummer: org.orgnr, endringstype: 'Endring' },
+        { oppdateringsid: 3, organisasjonsnummer: '123456789', endringstype: 'Ny' },
+      ],
+      async (id) => {
+        fetches++;
+        return id === org.orgnr ? org : { ...org, orgnr: id, website: undefined };
+      },
+    );
+    assert.equal(fetches, 2);
+    assert.equal(store.get('registry.cursor'), '3');
+    assert.equal(store.status().queued, 0);
+    queueUpdates(
+      store,
+      [{ oppdateringsid: 4, organisasjonsnummer: org.orgnr, endringstype: 'Endring' }],
+      [{ ...org, website: undefined }],
+    );
+    assert.equal(store.claim()!.key, org.orgnr, 'removing a website must trigger withdrawal checking');
+  } finally {
+    store.close();
+  }
+});
+
+test('a later registry event wins when an organisation is removed and restored within one page', async () => {
+  const store = new Store(':memory:');
+  try {
+    store.set('registry.since', positive.checkedAt);
+    await pollRegistry(
+      store,
+      async () => [
+        { oppdateringsid: 1, organisasjonsnummer: org.orgnr, endringstype: 'Fjernet' },
+        { oppdateringsid: 2, organisasjonsnummer: org.orgnr, endringstype: 'Ny' },
+      ],
+      async () => org,
+    );
+    assert.deepEqual(store.organisation(org.orgnr), org);
+    assert.equal(store.get('registry.cursor'), '2');
+  } finally {
+    store.close();
+  }
+});
+
+test('an event arriving during a check prevents stale evidence from replacing the registry or publishing', async () => {
+  const store = new Store(':memory:');
+  const wire = remote();
+  try {
+    ready(store);
+    store.upsertOrganisation(org);
+    store.enqueue(org.orgnr);
+    await workOnce(store, wire.client, async () => {
+      store.upsertOrganisation({ ...org, website: 'changed.no' });
+      store.enqueue(org.orgnr);
+      return positive;
+    });
+    assert.equal(wire.records.size, 0);
+    assert.equal(store.organisation(org.orgnr)?.website, 'changed.no');
+    assert.equal(store.status().queued, 1);
+    assert.equal(store.checks().length, 0);
+  } finally {
+    store.close();
+  }
+});
+
+test('concurrent workers lease an organisation once and publish only one record', async () => {
+  const store = new Store(':memory:');
+  const wire = remote();
+  try {
+    ready(store);
+    store.upsertOrganisation(org);
+    store.enqueue(org.orgnr);
+    let release!: () => void;
+    const wait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    const check = async () => {
+      calls++;
+      await wait;
+      return positive;
+    };
+    const first = workOnce(store, wire.client, check);
+    assert.equal(await workOnce(store, wire.client, check), false);
+    release();
+    await first;
+    assert.equal(calls, 1);
+    assert.equal(wire.records.size, 1);
+    assert.equal(store.status().queued, 0);
+  } finally {
+    store.close();
+  }
+});
+
+test('persistent discovery failures back off for a day; active pilot failures keep hourly retries', async () => {
+  for (const pilot of [false, true]) {
+    const store = new Store(':memory:');
+    const wire = remote();
+    try {
+      ready(store);
+      store.upsertOrganisation(org);
+      store.enqueue(org.orgnr);
+      store.db.exec('UPDATE jobs SET attempts=20');
+      await workOnce(store, pilot ? wire.client : undefined, async () => ({
+        ...positive,
+        identity: undefined,
+        decision: 'unavailable',
+      }));
+      const due = Number(store.db.prepare('SELECT due FROM jobs WHERE key=?').get(org.orgnr)!.due);
+      assert.ok(Math.abs(due - Date.now() - (pilot ? 3_600_000 : 86_400_000)) < 1000);
+    } finally {
+      store.close();
+    }
+  }
+});
+
+test('a shared-domain conflict discovered during the publisher read prevents a new remote write', async () => {
+  const store = new Store(':memory:');
+  const wire = remote();
+  try {
+    ready(store);
+    store.upsertOrganisation(org);
+    store.enqueue(org.orgnr);
+    wire.client.get = async () => {
+      store.upsertOrganisation({ ...org, orgnr: '123456789', website: 'www.devotta.no/tenant' });
+      return undefined;
+    };
+    await workOnce(store, wire.client, async () => positive);
+    assert.equal(wire.records.size, 0);
+    assert.equal(store.publications()[0]!.state, 'pending');
+    assert.equal(store.status().retrying, 1);
+  } finally {
+    store.close();
+  }
+});

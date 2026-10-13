@@ -19,6 +19,7 @@ export interface Identity {
 }
 export interface Check {
   policyVersion?: string;
+  registrySource?: 'index' | 'live';
   mode: Mode;
   organisation: Organisation;
   candidate?: string;
