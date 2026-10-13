@@ -14,6 +14,7 @@ function element<T extends HTMLElement>(selector: string, constructor: { new ():
 }
 const $ = (selector: string) => element(selector, HTMLElement);
 let mode: Mode = 'fixture';
+let automatic = false;
 let state: State = { checks: [], publications: [] };
 const labels: Record<Decision, string> = {
   match: 'Samsvar',
@@ -59,10 +60,21 @@ function render() {
   const checks = state.checks.filter((check) => check.mode === mode);
   const check = checks[0];
   // A fixture restart creates new DIDs. Never present old records as current.
-  const publications = state.publications.filter((p) => p.repo === state.network?.issuer.did);
-  const publication = mode === 'fixture' ? publications[0] : undefined;
-  text('#result-title', check?.organisation.name ?? 'Klar for første kontroll');
-  text('#reason', check?.reason ?? 'Velg en situasjon og følg hva som skjer i hvert ledd.');
+  const publications = state.publications.filter((p) =>
+    mode === 'fixture'
+      ? p.repo === state.network?.issuer.did
+      : p.mode === 'live' && p.orgnr === check?.organisation.orgnr,
+  );
+  const publication = publications[0];
+  text('#result-title', check?.organisation.name ?? 'Klar for kontroll');
+  text(
+    '#reason',
+    check?.reason ??
+      (mode === 'fixture'
+        ? 'Velg en situasjon og kjør kontrollen.'
+        : 'Skriv inn organisasjonsnummeret og kjør kontrollen.'),
+  );
+  $('#check-details').hidden = !check;
   text('#decision', check ? labels[check.decision] : 'Ikke kjørt');
   $('#decision').className = `badge ${check?.decision ?? ''}`;
   $('#evidence').replaceChildren(
@@ -83,18 +95,10 @@ function render() {
         ]
       : []),
   );
-  text('#step-registry', check?.organisation.website ?? 'Hjemmeside fra Brreg');
-  text(
-    '#step-identity',
-    check?.identity ? 'Toveis kobling bekreftet' : check ? 'Ingen bekreftet konto' : 'Handle ↔ DID',
-  );
-  text('#step-decision', check ? labels[check.decision] : 'Domene og profilnavn');
-  text(
-    '#step-publish',
-    mode === 'live' ? 'Kun lesing' : publication ? publicationLabels[publication.state] : 'Ingen record ennå',
-  );
   $('#record-section').hidden = !publication;
+  $('#record').hidden = !publication;
   if (publication) {
+    text('#record-title', mode === 'fixture' ? 'Verifikasjon i testmiljøet' : 'Verifikasjon fra utstederen');
     text('#publication-status', publicationLabels[publication.state]);
     $('#publication-status').className =
       `badge ${publication.state === 'published' ? 'match' : 'needs_review'}`;
@@ -102,8 +106,10 @@ function render() {
       '#publication-note',
       publication.error ??
         (publication.state === 'revoked'
-          ? 'Recorden er slettet fra PDS-en. Det lokale kontrollsporet beholdes.'
-          : 'Lagret på den lokale utstederkontoen. Dette gir ikke et offentlig Bluesky-merke.'),
+          ? 'Verifikasjonen er fjernet.'
+          : mode === 'fixture'
+            ? 'Ingen offentlig publisering.'
+            : 'Håndteres automatisk av tjenesten.'),
     );
     text(
       '#record',
@@ -119,7 +125,8 @@ function render() {
       ),
     );
   }
-  text('#history-count', `${checks.length} kjøringer`);
+  $('#history-panel').hidden = !checks.length;
+  text('#history-count', String(checks.length));
   const rows: HTMLElement[] = checks.slice(0, 8).map((item) => {
     const row = document.createElement('div');
     row.className = 'history-row';
@@ -128,21 +135,12 @@ function render() {
     timestamp.className = 'mono muted';
     const name = document.createElement('strong');
     name.textContent = item.organisation.name;
-    const source = document.createElement('span');
-    source.textContent = item.candidate ?? 'Ingen hjemmeside';
-    source.className = 'muted';
     const badge = document.createElement('span');
     badge.textContent = labels[item.decision];
     badge.className = `badge ${item.decision}`;
-    row.append(timestamp, name, source, badge);
+    row.append(timestamp, name, badge);
     return row;
   });
-  if (!rows.length) {
-    const empty = document.createElement('p');
-    empty.className = 'empty';
-    empty.textContent = 'Kontrollhistorikken vises her.';
-    rows.push(empty);
-  }
   $('#history').replaceChildren(...rows);
 }
 async function refresh() {
@@ -151,6 +149,43 @@ async function refresh() {
   // Same-origin response produced by the typed server; rendered only as text.
   state = (await response.json()) as State;
   render();
+  const automationResponse = await fetch('/api/automation');
+  if (!automationResponse.ok) throw new Error('Kunne ikke hente bakgrunnsstatus.');
+  const automation = (await automationResponse.json()) as {
+    enabled: boolean;
+    publishing: boolean;
+    organisations: number;
+    queued: number;
+    retrying: number;
+    progress: Record<string, string>;
+  };
+  $('#automation-panel').hidden = !automation.enabled;
+  automatic = automation.enabled;
+  text('#automation-mode', automation.publishing ? 'Offentlig pilot' : 'Kun forhåndsvisning');
+  text(
+    '#automation-summary',
+    `${automation.organisations} ${automation.organisations === 1 ? 'organisasjon' : 'organisasjoner'}, ${automation.queued} kontroller i kø.`,
+  );
+  const phases: Record<string, string> = {
+    loading: 'Registerimport pågår',
+    catchup: 'Henter registerendringer',
+    ready: 'Registeret er importert',
+  };
+  text(
+    '#automation-progress',
+    `${phases[automation.progress['import.phase'] ?? ''] ?? 'Full registerimport er ikke kjørt'}. Siste registeroppdatering: ${automation.progress['registry.lastPoll'] ?? 'ikke kjørt'}.`,
+  );
+  text(
+    '#automation-errors',
+    [
+      automation.retrying ? `${automation.retrying} kontroller venter på nytt forsøk.` : '',
+      automation.progress['worker.error'],
+      automation.progress['registry.error'],
+    ]
+      .filter(Boolean)
+      .join(' '),
+  );
+  $('#automation-errors').hidden = !$('#automation-errors').textContent;
 }
 async function run(path: string, body: Record<string, string>) {
   const buttons = document.querySelectorAll<HTMLButtonElement>('form button');
@@ -174,7 +209,7 @@ async function run(path: string, body: Record<string, string>) {
           : 'Kontrollen feilet.',
       );
     await refresh();
-    text('#notice', 'Kontrollen er ferdig. Grunnlaget og resultatet er oppdatert.');
+    text('#notice', 'Kontrollen er ferdig.');
     $('#notice').className = 'success';
   } catch (error) {
     text('#notice', error instanceof Error ? error.message : 'Kontrollen feilet.');
@@ -199,3 +234,10 @@ refresh().catch((error) => {
   $('#notice').hidden = false;
   text('#notice', error instanceof Error ? error.message : 'Kontrollen feilet.');
 });
+setInterval(() => {
+  if (automatic && !document.hidden && !document.querySelector('form button:disabled'))
+    refresh().catch(() => {
+      text('#automation-errors', 'Status kunne ikke oppdateres. Prøver igjen.');
+      $('#automation-errors').hidden = false;
+    });
+}, 10_000);

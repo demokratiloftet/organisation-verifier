@@ -22,6 +22,13 @@ docker compose up -d --build --no-deps app
 
 ## VPS
 
+**Oppdatert 12. oktober 2026:** Den nyeste demoen har autentisert HTTPS på
+[verifikasjon.dev.demokratiloftet.no:8443](https://verifikasjon.dev.demokratiloftet.no:8443/).
+Se [gjeldende internettoppsett](internet.md). SSH-tunnelen nedenfor beskriver den
+tidligere, lokale driftsmodellen.
+
+### Tidligere loopback-demo
+
 Tjenesten ligger separat i `/root/organisation-verifier` på prosjektets VPS. Den benytter eget Compose-prosjekt, eget volum og egne nett. Det eksisterende `server-infrastructure`-oppsettet og domenene berøres ikke.
 
 Webappen på VPS-en er bare tilgjengelig over loopback. For demonstrasjon fra egen maskin må lokal app på samme port stoppes først:
@@ -67,7 +74,7 @@ oppretter et nytt testnett neste gang.
 - `docker compose restart app` beholder både historikk og testnett. Neste kontroll finner igjen eksisterende record.
 - En restart av **fixture** lager nye kontoer og DIDs. Gamle utstederrecords hører til forrige testnett og vises ikke som aktive i det nye. Historikken beholdes for inspeksjon.
 - `docker compose down` beholder SQLite-volumet. Unngå `down -v` med mindre du uttrykkelig ønsker å slette historikken.
-- En feil i et PDS-kall lagres som publiseringsfeil; kjør kontrollen på nytt for avstemming ved samme nøkkel. Det er ingen automatisk scheduler i denne demoversjonen.
+- En feil i et PDS-kall lagres som publiseringsfeil; kjør kontrollen på nytt for avstemming ved samme nøkkel. Standarddemoen har ingen scheduler; den valgfrie bakgrunnstjenesten håndterer automatiske gjenforsøk. Se [automatikk](automation.md).
 
 Dette er et disponibelt testnett, ikke en backup-/migrasjonsløsning for en produksjons-PDS. Produksjonsbackup, overvåking, retensjon og rollestyrt operatørtilgang er egne oppgaver.
 

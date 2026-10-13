@@ -1,10 +1,12 @@
 import { Agent } from '@atproto/api';
-import { IdResolver, ensureAtpDocument } from '@atproto/identity';
-import { safeFetchWrap } from '@atproto-labs/fetch-node';
+import { publicFetch as safeFetch, resolveIdentity } from './identity.js';
+export { resolveIdentity } from './identity.js';
 import {
   claimedHandle,
+  policyVersion,
   decide,
   websiteHandle,
+  withoutWww,
   type Check,
   type Identity,
   type Organisation,
@@ -12,8 +14,6 @@ import {
 } from './domain.js';
 
 export const registryBase = 'https://data.brreg.no/enhetsregisteret/api';
-const safeFetch = safeFetchWrap({ allowIpHost: false, timeout: 8_000, responseMaxSize: 512_000 });
-const resolver = new IdResolver({ timeout: 5_000 });
 
 export async function fetchOrganisation(orgnr: string): Promise<Organisation> {
   if (!/^\d{9}$/.test(orgnr)) throw new Error('Organisasjonsnummer må ha ni siffer.');
@@ -21,51 +21,42 @@ export async function fetchOrganisation(orgnr: string): Promise<Organisation> {
     redirect: 'error',
     headers: { accept: 'application/vnd.brreg.enhetsregisteret.enhet.v2+json' },
   });
-  if (response.status === 404) throw new Error('Organisasjonsnummeret finnes ikke i Enhetsregisteret.');
+  if (response.status === 404) return { orgnr, name: orgnr, deleted: true };
   if (!response.ok) throw new Error(`Brreg svarte med HTTP ${response.status}.`);
   const data = (await response.json()) as Record<string, unknown>;
-  if (data.organisasjonsnummer !== orgnr || typeof data.navn !== 'string')
+  if (
+    data.organisasjonsnummer !== orgnr ||
+    (typeof data.navn !== 'string' && typeof data.slettedato !== 'string')
+  )
     throw new Error('Uventet svar fra Brreg.');
   return {
     orgnr,
-    name: data.navn,
+    name: typeof data.navn === 'string' ? data.navn : orgnr,
     website: typeof data.hjemmeside === 'string' ? data.hjemmeside : undefined,
     deleted: typeof data.slettedato === 'string',
   };
 }
 
-export async function resolveIdentity(handle: string): Promise<Identity | undefined> {
-  const did = await resolver.handle.resolve(handle);
-  if (!did) return;
-  const doc = await resolver.did.ensureResolve(did, true);
-  if (claimedHandle(doc.alsoKnownAs) !== handle) return;
-  const data = ensureAtpDocument(doc);
-  const url = new URL('/xrpc/com.atproto.repo.getRecord', data.pds);
-  url.search = new URLSearchParams({
-    repo: did,
-    collection: 'app.bsky.actor.profile',
-    rkey: 'self',
-  }).toString();
-  const response = await safeFetch(url, { redirect: 'error' });
-  if (!response.ok) throw new Error(`Profiloppslag svarte med HTTP ${response.status}.`);
-  const profile = (await response.json()) as { value?: { displayName?: unknown } };
-  return {
-    did,
-    handle,
-    pds: data.pds,
-    displayName: typeof profile.value?.displayName === 'string' ? profile.value.displayName : '',
-  };
-}
-
-export async function liveCheck(orgnr: string): Promise<Check> {
+export async function liveCheck(
+  orgnr: string,
+  organisationSource = fetchOrganisation,
+  identitySource = resolveIdentity,
+): Promise<Check> {
   let organisation: Organisation = { orgnr, name: orgnr, deleted: false };
   let candidate: string | undefined;
   try {
-    organisation = await fetchOrganisation(orgnr);
+    organisation = await organisationSource(orgnr);
     candidate = organisation.website ? websiteHandle(organisation.website) : undefined;
-    const identity = candidate && !organisation.deleted ? await resolveIdentity(candidate) : undefined;
+    let identity = candidate && !organisation.deleted ? await identitySource(candidate) : undefined;
+    const fallback = candidate ? withoutWww(candidate) : undefined;
+    // Only confirmed absence permits a fallback. A timeout must remain uncertain.
+    if (!identity && fallback && !organisation.deleted) {
+      candidate = fallback;
+      identity = await identitySource(candidate);
+    }
     return {
       mode: 'live',
+      policyVersion,
       organisation,
       candidate,
       identity,
@@ -75,6 +66,7 @@ export async function liveCheck(orgnr: string): Promise<Check> {
   } catch (error) {
     return {
       mode: 'live',
+      policyVersion,
       organisation,
       candidate,
       decision: 'unavailable',
@@ -114,7 +106,13 @@ export class FixtureSource {
   async check(state: FixtureState): Promise<Check> {
     const organisation = state.organisation;
     const candidate = organisation.website ? websiteHandle(organisation.website) : undefined;
-    const base = { mode: 'fixture' as const, organisation, candidate, checkedAt: new Date().toISOString() };
+    const base = {
+      policyVersion,
+      mode: 'fixture' as const,
+      organisation,
+      candidate,
+      checkedAt: new Date().toISOString(),
+    };
     if (state.scenario === 'unavailable')
       return {
         ...base,

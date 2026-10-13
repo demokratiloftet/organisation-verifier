@@ -9,6 +9,9 @@ To moduser:
 
 Dette verifiserer **domenetilknytning**, ikke en persons juridiske fullmakt. Publisering gir heller ikke automatisk et synlig Bluesky-merke.
 
+Autentisert VPS-demo: [åpne verifikasjon](https://verifikasjon.dev.demokratiloftet.no:8443/).
+[Enkel forklaring og drift](docs/internet.md).
+
 ## Start
 
 Krever Docker Compose, Node **24.17** og pnpm **11.8**.
@@ -27,6 +30,7 @@ Velg «Alt stemmer», kjør to ganger, og velg deretter «Profilnavnet endres».
 
 ```sh
 pnpm check             # typer, tester og bygg
+pnpm test:worker-integration # varig worker mot den isolerte PDS-en
 pnpm test:integration  # krever demo:up; leser og kontrollerer records på den ekte test-PDS-en
 pnpm format:check
 pnpm demo:down         # stopper demoen; beholder SQLite-volumet
@@ -48,7 +52,12 @@ og `pnpm --dir fixture typecheck`; CI gjør dette automatisk.
 
 Fastify, SQLite og atproto-SDK brukes. Ingen frontend-rammeverk er nødvendig for dette kontrollpanelet. Policy, kilder, lagring og publisering ligger i hver sin modul under `src/`.
 
-Demoen er et første snitt gjennom flyten. Full registerimport, kontinuerlig overvåking, offentlig utsteder og produksjonsdrift er egne, gjenstående leveranser.
+Bakgrunnstjenesten er nå implementert: strømmet registerimport, varig jobbkø,
+Brreg-endringer, Jetstream v2, periodiske kontroller og en avgrenset offentlig
+publisher. Alt er avslått som standard. Se [automatikk, foreløpig policy og
+pilotoppsett](docs/automation.md) for oppstart og gjenstående aktivering.
+Devotta gir en positiv manuell kontroll. Offentlig utstederkonto, fullregisterkjøring
+og pilotakseptanse gjenstår; se [kort restliste for LOFT-76](docs/roadmap.md).
 
 ![Kontrollgrunnlag og publisering i demoen](docs/media/demo-overview.png)
 
@@ -60,7 +69,6 @@ Actions er låst til commit-SHA-er. Se [sikkerhetspolicy](SECURITY.md).
 Fixture er oppdatert til dev-env 0.6.14 med samme sikkerhetsoverstyringer som den
 isolerte `local-sandbox`; bare testede PDS/PLC-funksjoner skal brukes.
 
-Operatørappen er tilgjengelig på loopback/SSH og skal ikke publiseres uten en
-egen autentiserings- og tilgangsmodell. Live-oppslag er kun lesing. Nettverksfeil
+Operatørappen bruker loopback lokalt og HTTPS med operatørinnlogging på VPS-en. Live-oppslag er kun lesing. Nettverksfeil
 skal aldri gi en ny positiv verifikasjon. Løpende VPS-oppdateringer er beskrevet i
 [driftsveiledningen](docs/operations.md).

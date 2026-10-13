@@ -1,54 +1,55 @@
-# Beslutninger og delegering
+# LOFT-76: ferdigkriterier og videre bruk
 
-LOFT-76 er fortsatt fasiten for produktmålet. Repoet leverer en demonstrerbar kontroll- og publiseringsflyt, men fullfører ikke alle underoppgavene. Jira er ikke endret av dette arbeidet.
+Oppdatert 13. oktober 2026. [LOFT-76](https://devotta.atlassian.net/browse/LOFT-76)
+krever en full registergjennomgang og faktisk offentlig publisering. Kode og en
+positiv manuell kontroll er ikke alene nok til å lukke oppgaven.
 
-## Det Edvin bør avgjøre før offentlig utstedelse
+## Kort restliste
 
-| Beslutning                        | Forslag                                                            | Hvorfor det må avgjøres                                               |
-| --------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Hva utstederen garanterer         | Domenetilknytning til en Brreg-enhet                               | Ikke impliser juridisk fullmakt eller BankID-kontroll                 |
-| Eksakt host eller foreldredomene  | Start eksakt; dokumenter unntak separat                            | `tenant.felles.no` må ikke verifisere `felles.no`                     |
-| Flere enheter på samme domene/DID | Hold tilbake automatisk utstedelse                                 | Én nettside kan dekke konsern, filialer og helt andre enheter         |
-| Registrert navn vs. merkenavn     | Avklar tillatte avvik og manuell overstyring                       | Dagens nøyaktige navnesammenligning vil avvise legitime merkenavn     |
-| Utløp, feil og tilbakekalling     | Avtal maks alder, retry-vindu og definitive tilbakekallingsgrunner | En timeout er ikke bevis på at koblingen er borte                     |
-| Utstederkonto og tillit           | Kjetil velger konto/handle på ønsket PDS                           | Kontoeierskap, nøkkelansvar og Bluesky-synlighet er separate spørsmål |
-| Deling av kontrollgrunnlag        | Lokal historikk først; avklar offentlig bevisformat senere         | Standardrecorden inneholder ikke orgnr eller registerbevis            |
+- [ ] Velg en dedikert utstederkonto: PDS, handle/DID, ansvarlig og app-passord på VPS-en.
+- [ ] Bekreft hva vi lover: domenetilknytning, navnekrav, delte domener og regler for tilbaketrekking. Fullfør angrepsgjennomgangen i LOFT-87.
+- [ ] Kjør full Brreg-import og endringsavstemming på VPS-en; gjennomgå positive treff uten publisering først.
+- [ ] Publiser for en avgrenset pilot og verifiser at en annen klient kan lese recorden. Test omkjøring uten duplikater og faktisk tilbaketrekking.
+- [ ] Fullfør første kontrollbatch, dokumenter feil/unntak og avklar hvilke treff som er godkjent for offentlig utstedelse. Dagens pilotliste tillater ikke automatisk publisering for alle treff.
+- [ ] Avtal driftsansvar, varsling og backup/gjenoppretting; dokumenter akseptansen før LOFT-76 lukkes.
 
-Dette blokkerer **ikke** arbeid på importer, adaptere, jobber og tester. Det blokkerer automatisk utstedelse av offentlige verifikasjoner med en uavklart betydning.
+## Hva er en utstederkonto?
 
-## Foreslått leveranserekkefølge
+En vanlig atproto-konto som eies av den som går god for kontrollen, for eksempel
+Demokratiloftet. Kontoens DID identifiserer avsenderen. Dens repository på en PDS
+inneholder `app.bsky.graph.verification`-records som peker på organisasjonenes DIDs.
+Å skrive den offentlige recorden til repositoryet er publiseringen; det er ikke
+et vanlig innlegg i en sosial feed. Kontoen som verifiseres er en annen rolle.
 
-```mermaid
-flowchart LR
-  A[1. Demo av hele flyten] --> B[2. Policy og utsteder avklart]
-  A --> C[3. Registerimport og varige jobber]
-  B --> D[4. Kontrollert offentlig pilot]
-  C --> D
-  D --> E[5. Kontinuerlig register- og atproto-overvåking]
-```
+LOFT-76 foreslår Eurosky, men en egen Demokratiloftet-konto på vår VPS er også mulig.
+Privat eller offentlig tilgjengelighet må avklares. Publisheren støtter en konfigurert HTTPS-PDS,
+med låst utsteder-DID og eksplisitt pilotliste. Ingen utsteder er konfigurert på
+VPS-en per 13. oktober; offentlig publisering er avslått. App-passord legges i en
+beskyttet fil på VPS-en, aldri i chat, Git eller klientkode.
 
-## Konkrete oppgaver
+## Public Suffix List og domeneregelen
 
-Estimatene er grove arbeidsstørrelser for utviklere som kjenner TypeScript. De er ikke leveringsløfter.
+`tldts` bruker Public Suffix List, inkludert private suffixes, til å hindre at
+`www`-fallback krysser en registrerbar domenegrense. `www.firma.co.uk` kan prøves
+som `firma.co.uk`; `www.co.uk` skal ikke bli `co.uk`, og `www.github.io` skal ikke
+bli `github.io`. Vanlige eksakte handle-oppslag krever ikke at suffixet er kjent i
+listen. PSL beviser verken eierskap eller at et domene finnes.
 
-| Oppgave / Jira-kobling                                | Startpunkt                               | Ferdig når                                                                                                                                                         | Avhengighet / størrelse        |
-| ----------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
-| **Avklar verifikasjonspolicy** — LOFT-79/87           | `domain.ts`, beslutningstabellen over    | Policyversjon, delte domener, navn, tilbakekalling og minst ti positive/negative eksempler er godkjent                                                             | Edvin + Kjetil; 0,5–1 dag      |
-| **Registeradapter og full import** — LOFT-77/80       | `fetchOrganisation`                      | Strøm `/enheter/lastned` med begrenset minne; idempotent upsert; gjenstartbar import; orgnr/host-indekser                                                          | Kan starte nå; 1–2 dager       |
-| **Jobber og publiseringskø** — LOFT-80/84             | `Store`, `Publisher`                     | Varige, dedupliserte jobber med lease/retry/backoff; intensjon og jobboppdatering atomisk; restarttest; begrenset parallellitet                                    | Kan starte nå; 1–2 dager       |
-| **Registerendringer** — LOFT-78                       | Registeradapter + jobber                 | `/oppdateringer/enheter` trigger nytt oppslag; cursor lagres først etter varig kølegging; inklusiv ID/overlapp håndteres; sletting testes                          | Import + kø; 1–2 dager         |
-| **Robust identitetsoppløsning** — LOFT-79/87          | `resolveIdentity`                        | Timeout skilles fra manglende handle; DID-endring, deaktivert konto, SSRF og navnendring testes; foreldredomene bruker PSL dersom godkjent                         | Policy; 1–2 dager              |
-| **Utstederkonto og offentlig publisher** — LOFT-82/83 | Egen implementasjon av `RecordRemote`    | Valgt konto og handle, secret-håndtering, plan/preview før writes, avgrenset pilotliste, gjennomført tilbakekalling; ingen fixture-data kan nå offentlig transport | Policy + konto; 1–2 dager      |
-| **Jetstream som trigger** — LOFT-81/84                | Samme kontrolljobb som registerendringer | Identity/account/profilhendelser kølegger ny autoritativ kontroll; cursor/replay/deduplisering og gjenoppretting etter fravær testes                               | Jobbkø + indekser; 1–2 dager   |
-| **Tilbakekalling og periodisk avstemming** — LOFT-88  | `Publisher.apply/reconcile`              | Varig tilbakekalling med samme URI; test av tapte svar; periodisk sjekk av faktisk PDS-innhold; slettede/deaktiverte kontoer; policy for gammelt grunnlag          | Policy + jobber; 1–2 dager     |
-| **Drift og operatørtilgang**                          | `compose.yaml`, `operations.md`          | Godkjent autentisering, tilgangsroller, backup/restore-test, migrasjoner, logger/målinger/varsling og begrenset offentlig lesevisning                              | Før offentlig pilot; 1–2 dager |
+Vi beholder én begrenset `www`-fallback, med full toveis identitets- og navnekontroll.
+Vi innfører ikke LOFT-79s foreslåtte generelle hopp fra vilkårlige underdomener til
+registrerbart domene. Det må vurderes sammen med LOFT-87. Listen følger den låste
+`tldts`-versjonen; eksisterende ukentlige Dependabot-oppdateringer må gjennomgås og
+merges for å holde den oppdatert. Kilde: https://publicsuffix.org/learn/.
 
-**Brreg API eller JSON?** Begge har en plass. Direkte `/enheter/{orgnr}` brukes ved kontroll. API-et har også `hjemmeside`-filter for kandidatsøk, men søketreff må kontrolleres mot hele enheten. Vanlig søkepaginering er begrenset til 10 000 resultater. For en full innledende gjennomgang er den daglige bulkfilen et fornuftig utgangspunkt; etterpå brukes endrings-API-et. LOFT-77 bør beskrive dette, ikke anta at API-et mangler hjemmesidesøk.
+## Bruk i loftet-social og calendar
 
-**Initial import og endringer:** ta vare på en startcursor før snapshot-import, importer snapshotet og spill endringer fra startcursoren etterpå. Håndter overlapp idempotent. Ikke flytt cursor forbi en endring før jobben er varig lagret.
+Begge appene kan lese recordene fra utstederens PDS og vise «Domenetilknytning
+bekreftet». De må stole på en konfigurert utsteder-DID, koble `subject` til riktig
+organisasjonskonto, kontrollere gjeldende handle/navn og oppdatere visningen ved
+sletting eller endring. Ikke godta en record fra en vilkårlig avsender.
 
-**Jetstream:** er en vekkerklokke, ikke verifikasjonsbevis. En hendelse skal føre til nytt register-, handle-, DID- og profiloppslag. Verken hendelsespayloaden eller et søketreff alene skal gi en verifikasjon.
-
-## Forslag til svar til Kjetil
-
-> Jeg har sett på LOFT-76 og laget et kjørbart grunnlag som demonstrerer register → domene → DID → verifikasjonsrecord, inkludert tilbaketrekking. Jeg er enig i hovedmålet. Jeg foreslår at vi presiserer hva vi faktisk verifiserer, hvordan vi håndterer delte/overordnede domener og avvik mellom firmanavn og profilnavn, og når en verifikasjon skal trekkes tilbake. Brreg har hjemmesidesøk i API-et, så enkeltkontroller og endringer kan bruke API-et direkte; bulkfilen er fortsatt nyttig til første gjennomgang av hele registeret. Jeg ville delt resten i registerimport, varige kontrolljobber, utsteder/publisering og hendelser som trigger nye kontroller. Identitetskomponenten og e-postverifisering er ikke nødvendige for denne flyten, siden vi finner eksisterende atproto-kontoer.
+Dette er en mulig neste integrasjon, ikke implementert visning i disse appene.
+Standardrecorden inneholder ikke organisasjonsnummer eller Brreg-grunnlag; hvis
+appene trenger dette, må koblingen formidles separat. Privat kontrollhistorikk
+blir på VPS-en. Offentlige records kan hentes og kopieres av andre. Bluesky-merke
+krever separat tillit i Bluesky og følger ikke automatisk av publiseringen.

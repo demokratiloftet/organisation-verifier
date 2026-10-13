@@ -1,0 +1,6 @@
+# Opt-in background checks. This preserves the loopback-only operator UI and fixture boundary.
+services:
+  app:
+    environment:
+      AUTOMATION_ENABLED: 'true'
+      JETSTREAM_URL: ${JETSTREAM_URL:-wss://jetstream.us-east.bsky.network/xrpc/network.bsky.jetstream.subscribeEvents}
