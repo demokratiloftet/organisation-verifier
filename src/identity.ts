@@ -40,7 +40,10 @@ export async function resolveHandle(
   } catch (error) {
     dnsFailed = !['ENODATA', 'ENOTFOUND'].includes(String((error as NodeJS.ErrnoException).code));
   }
-  const response = await http(`https://${handle}/.well-known/atproto-did`, { redirect: 'error' });
+  // Handle resolution permits redirects. The SDK guards every hop (HTTPS/public
+  // addresses only); fetch limits hops and the 8s budget covers the whole chain.
+  // resolveIdentity still requires the DID document to claim the original handle.
+  const response = await http(`https://${handle}/.well-known/atproto-did`, { redirect: 'follow' });
   if (response.ok) {
     const did = (await response.text()).split('\n')[0]!.trim();
     if (isValidDid(did)) return did;

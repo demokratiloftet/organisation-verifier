@@ -13,6 +13,10 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
   navneavvik gir ikke dette unntaket. Public Suffix List hindrer fallback til et offentlig eller privat suffix.
   Andre foreldredomener og navneunntak støttes ikke.
 - Profilnavnet må samsvare etter Unicode-, mellomrom- og bokstavnormalisering.
+- HTTPS-oppslaget for en handle følger videresendinger, slik AT-protokollen tillater.
+  Hvert hopp må fortsatt bruke HTTPS på standardport til en offentlig adresse, og
+  hele kjeden har åtte sekunders tidsgrense. DID-dokumentet må bekrefte opprinnelig
+  handle; en videresending endrer ikke hvilken identitet som kontrolleres.
 - Flere enheter med samme host, med eller uten `www`, gir manuell vurdering. Nettsteder med
   en sti telles med ved konfliktkontroll, selv om de ikke selv kan verifiseres.
 - Positive kontroller gjentas daglig; andre kjente domener ukentlig. Register- og

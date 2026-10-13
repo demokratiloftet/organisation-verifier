@@ -1,5 +1,25 @@
 # Kontrollert 13. oktober 2026
 
+## HTTPS-videresendinger før demo 14. oktober
+
+Handle-oppslaget avviste alle videresendinger selv om
+[AT-protokollen tillater dem](https://atproto.com/specs/handle). En skrivebeskyttet
+prøve fra VPS-en fant fire HTTPS-videresendinger som endte med 404 på well-known-
+adressen. De var tidligere registrert som transportfeil. En femte videresending
+til HTTP ble fortsatt avvist av SDK-ens sikkerhetskontroll.
+
+Handle-oppslaget følger nå videresendinger gjennom SDK-ens kontroller på hvert
+hopp. Åtte sekunders samlet tidsgrense og fetch sin hoppgrense gjelder fortsatt.
+Toveiskontrollen krever fremdeles den opprinnelige handlen. DNS-, TLS-, timeout-
+og serverfeil er fortsatt usikre svar, ikke negative bevis.
+
+50 tester, typekontroll, bygg og formatering bestod med Node 24.17. Nye tester
+kontrollerer redirect-modus, terminale svar og at den faktiske SDK-dispatcheren
+avviser HTTP, egendefinert port, loopback, metadata-IP og localhost før tilkobling.
+Ekte isolert PDS-integrasjon, varig worker og nettverksisolasjon bestod også.
+
+## Tidligere kontroller samme dag
+
 - 32 tester, typekontroll og bygg bestått lokalt. Lokal Node er 26.3.0; CI bruker låst Node 24.17.
 - Oppdatert produksjonsimage (Node 24.17): ekte isolert PDS-integrasjon, varig worker og nettverksisolasjon bestått i separat Compose-prosjekt.
 - 31 av 32 enhetstester bestod også i det minimale produksjonsimaget; TLS-testen krever `openssl`, som bare finnes i utviklings-/CI-miljøet. Den bestod lokalt. Dette er en manglende testavhengighet i runtime-imaget. Hele CI-kjøringen på Node 24.17 bestod senere, inkludert TLS-testen.
