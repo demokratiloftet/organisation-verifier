@@ -147,6 +147,7 @@ export class Publisher {
   constructor(
     private readonly store: Store,
     private readonly remote: RecordRemote,
+    private readonly mayIssue = () => true,
   ) {}
 
   async apply(check: Check): Promise<void> {
@@ -231,6 +232,9 @@ export class Publisher {
       } else {
         if (actual && !sameRecord(actual, publication.record))
           throw new RecordConflict('Record-nøkkelen har annet innhold. Manuell kontroll kreves.');
+        // A registry/event update may arrive while the remote read is in flight.
+        // Recheck the worker's evidence/lease gate immediately before a new write.
+        if (!actual && !this.mayIssue()) throw new Error('Verification evidence changed before issuance.');
         publication.uri = actual
           ? `at://${publication.repo}/${collection}/${publication.rkey}`
           : await this.remote.put(publication.rkey, publication.record);

@@ -82,7 +82,12 @@
         <details class="secondary">
           <summary>Automatikk <span id="automation-mode" class="muted"></span></summary>
           <p id="automation-summary"></p>
+          <p id="automation-throughput"></p>
           <p id="automation-progress" class="muted"></p>
+          <p class="muted">
+            Hele registeret importeres én gang. Deretter hentes endringer. Domener og kontoer kontrolleres i
+            en egen kø; et importert register betyr ikke at alle kontoer er kontrollert.
+          </p>
         </details>
         <p id="automation-errors" class="muted" role="status" hidden></p>
       </section>

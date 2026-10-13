@@ -25,6 +25,7 @@ export interface Publication {
 
 export class Store {
   readonly db: DatabaseSync;
+  private claims = 0;
   constructor(path: string) {
     this.db = new DatabaseSync(path);
     this.db.exec(`
@@ -56,6 +57,13 @@ export class Store {
       PRAGMA user_version=1;
     `),
       );
+    // Existing databases gain a small index over candidates, rather than scanning
+    // a million organisations without websites on every scheduler tick.
+    this.db
+      .exec(`CREATE INDEX IF NOT EXISTS organisations_recheck_covering ON organisations(next_check,orgnr,did,host)
+      WHERE host IS NOT NULL OR did IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS organisations_checked ON organisations(last_success)
+      WHERE last_success IS NOT NULL`);
   }
   transaction<T>(action: () => T): T {
     this.db.exec('BEGIN IMMEDIATE');
@@ -137,18 +145,29 @@ export class Store {
   schedule(now = Date.now()): void {
     this.db
       .prepare(
-        `INSERT INTO jobs(key,due,priority) SELECT orgnr,?,CASE WHEN did IS NULL THEN 0 ELSE 1 END FROM organisations
+        `INSERT INTO jobs(key,due,priority) SELECT orgnr,?,CASE WHEN did IS NULL THEN 0 ELSE 1 END FROM organisations INDEXED BY organisations_recheck_covering
       WHERE next_check<=? AND (host IS NOT NULL OR did IS NOT NULL) ON CONFLICT(key) DO NOTHING`,
       )
       .run(now, now);
   }
   claim(now = Date.now()): Job | undefined {
     return this.transaction(() => {
-      const row = this.db
+      let row = this.db
         .prepare(
-          'SELECT key,revision,attempts FROM jobs WHERE due<=? AND lease_until<=? ORDER BY priority DESC,due,key LIMIT 1',
+          'SELECT key,revision,attempts,priority FROM jobs WHERE due<=? AND lease_until<=? ORDER BY priority DESC,due,key LIMIT 1',
         )
         .get(now, now);
+      // Reserve every fourth claim for the initial scan. Retries and events must
+      // not starve it indefinitely; explicit pilot jobs (priority 2) still go first.
+      if (row && ++this.claims % 4 === 0) {
+        if (Number(row.priority) < 2)
+          row =
+            this.db
+              .prepare(
+                'SELECT key,revision,attempts FROM jobs WHERE priority=0 AND due<=? AND lease_until<=? ORDER BY due,key LIMIT 1',
+              )
+              .get(now, now) ?? row;
+      }
       if (!row) return;
       const token = randomUUID();
       this.db
@@ -162,14 +181,25 @@ export class Store {
       .prepare('SELECT 1 FROM jobs WHERE key=? AND token=? AND lease_until>?')
       .get(job.key, job.token, Date.now());
   }
-  finish(job: Job, error?: string, now = Date.now()): void {
+  current(job: Job): boolean {
+    return (
+      this.owns(job) &&
+      this.db.prepare('SELECT revision FROM jobs WHERE key=?').get(job.key)?.revision === job.revision
+    );
+  }
+  finish(job: Job, error?: string, now = Date.now(), maxRetryDelay = 3_600_000): void {
     if (error) {
       this.db
         .prepare(
           `UPDATE jobs SET token=NULL,lease_until=0,attempts=attempts+1,error=?,due=?
         WHERE key=? AND token=?`,
         )
-        .run(error, now + Math.min(3_600_000, 30_000 * 2 ** Math.min(job.attempts, 7)), job.key, job.token);
+        .run(
+          error,
+          now + Math.min(maxRetryDelay, 30_000 * 2 ** Math.min(job.attempts, 12)),
+          job.key,
+          job.token,
+        );
     } else
       this.transaction(() => {
         this.db
@@ -209,6 +239,13 @@ export class Store {
       organisations: Number(this.db.prepare('SELECT count(*) AS n FROM organisations').get()!.n),
       queued: Number(this.db.prepare('SELECT count(*) AS n FROM jobs').get()!.n),
       retrying: Number(this.db.prepare('SELECT count(*) AS n FROM jobs WHERE attempts>0').get()!.n),
+      discovery: Number(this.db.prepare("SELECT count(*) AS n FROM jobs WHERE key GLOB 'did:*'").get()!.n),
+      withWebsite: Number(
+        this.db.prepare('SELECT count(*) AS n FROM organisations WHERE host IS NOT NULL').get()!.n,
+      ),
+      completed: Number(
+        this.db.prepare('SELECT count(*) AS n FROM organisations WHERE last_success IS NOT NULL').get()!.n,
+      ),
       oldestDue: this.db.prepare('SELECT min(due) AS due FROM jobs').get()!.due,
       recentErrors: this.db
         .prepare('SELECT key,attempts,error FROM jobs WHERE error IS NOT NULL ORDER BY due LIMIT 10')

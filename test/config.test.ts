@@ -181,3 +181,9 @@ for (const privateMode of [false, true])
     await assert.rejects(connect({ ...config, did: 'did:plc:abcdefghijklmnopqrstuvwx' }, transport), /DID/);
     assert.ok(requests.some((path) => path.endsWith('putRecord')));
   });
+
+test('worker concurrency is bounded and rejects malformed configuration', async () => {
+  assert.equal((await automationConfig({ WORKER_CONCURRENCY: '8' })).concurrency, 8);
+  for (const value of ['', '0', '9', '-1', '2.5', 'Infinity', '4workers'])
+    await assert.rejects(automationConfig({ WORKER_CONCURRENCY: value }), /WORKER_CONCURRENCY/);
+});

@@ -131,3 +131,17 @@ test('no arbitrary parent fallback, invalid URL fallback, or lookup of a deleted
   );
   assert.equal(deleted.decision, 'no_match');
 });
+
+test('Brreg 410 is a removed entry, not an endless transient retry; server failures stay uncertain', async () => {
+  const { fetchOrganisation } = await import('../src/sources.js');
+  for (const status of [404, 410])
+    assert.deepEqual(await fetchOrganisation(org.orgnr, async () => new Response(null, { status })), {
+      orgnr: org.orgnr,
+      name: org.orgnr,
+      deleted: true,
+    });
+  await assert.rejects(
+    fetchOrganisation(org.orgnr, async () => new Response(null, { status: 503 })),
+    /503/,
+  );
+});

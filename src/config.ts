@@ -3,6 +3,7 @@ import type { IssuerConfig } from './publisher.js';
 
 export interface AutomationConfig {
   enabled: boolean;
+  concurrency?: number;
   jetstream?: string;
   issuer?: IssuerConfig;
 }
@@ -13,6 +14,11 @@ export async function automationConfig(env = process.env): Promise<AutomationCon
     enabled: env.AUTOMATION_ENABLED === 'true',
     jetstream: env.JETSTREAM_URL || undefined,
   };
+  if (env.WORKER_CONCURRENCY !== undefined) {
+    if (!/^[1-8]$/.test(env.WORKER_CONCURRENCY))
+      throw new Error('WORKER_CONCURRENCY must be an integer from 1 to 8.');
+    config.concurrency = Number(env.WORKER_CONCURRENCY);
+  }
   const privateIssuance = env.PRIVATE_ISSUANCE_ENABLED === 'true';
   if (privateIssuance && env.PUBLIC_ISSUANCE_ENABLED === 'true')
     throw new Error('Private and public issuance cannot both be enabled.');

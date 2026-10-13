@@ -15,13 +15,16 @@ import {
 
 export const registryBase = 'https://data.brreg.no/enhetsregisteret/api';
 
-export async function fetchOrganisation(orgnr: string): Promise<Organisation> {
+export async function fetchOrganisation(orgnr: string, transport = safeFetch): Promise<Organisation> {
   if (!/^\d{9}$/.test(orgnr)) throw new Error('Organisasjonsnummer må ha ni siffer.');
-  const response = await safeFetch(`${registryBase}/enheter/${orgnr}`, {
+  const response = await transport(`${registryBase}/enheter/${orgnr}`, {
     redirect: 'error',
     headers: { accept: 'application/vnd.brreg.enhetsregisteret.enhet.v2+json' },
   });
-  if (response.status === 404) return { orgnr, name: orgnr, deleted: true };
+  if (response.status === 404 || response.status === 410) {
+    await response.body?.cancel();
+    return { orgnr, name: orgnr, deleted: true };
+  }
   if (!response.ok) throw new Error(`Brreg svarte med HTTP ${response.status}.`);
   const data = (await response.json()) as Record<string, unknown>;
   if (
