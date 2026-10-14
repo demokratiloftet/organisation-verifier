@@ -120,15 +120,39 @@ export async function createApp(options: AppOptions) {
     issuanceScope: options.automation?.issuer ? (options.automation.issuer.scope ?? 'pilot') : null,
     ...store.status(),
   }));
-  app.get('/api/state', async () => {
-    let network;
-    try {
-      network = await fixture.state();
-    } catch {
-      /* Live reads remain usable when the fixture is down. */
-    }
-    return { checks: store.checks(), publications: store.publications(), network, busy };
-  });
+  app.get<{ Querystring: { view?: 'verified'; q?: string; page?: number } }>(
+    '/api/state',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            view: { enum: ['verified'] },
+            q: { type: 'string', maxLength: 100 },
+            page: { type: 'integer', minimum: 1, maximum: 100000 },
+          },
+        },
+      },
+    },
+    async (request) => {
+      if (request.query.view === 'verified') {
+        const issuer = options.automation?.issuer;
+        const repo = issuer && !issuer.private ? issuer.did : '';
+        return {
+          ...store.verifiedOrganisations(repo, request.query.q?.trim(), request.query.page),
+          issuer: repo ? { did: repo, pds: issuer!.service } : null,
+        };
+      }
+      let network;
+      try {
+        network = await fixture.state();
+      } catch {
+        /* Live reads remain usable when the fixture is down. */
+      }
+      return { checks: store.checks(), publications: store.publications(), network, busy };
+    },
+  );
   app.post<{ Body: { scenario: Scenario } }>(
     '/api/fixture/check',
     {

@@ -96,3 +96,16 @@ betyr ikke at alle registrerte domener har en konto eller er ferdig avklart:
 34 582 jobber ventet på nytt forsøk i målingen kl. 17.13 UTC. Tekniske feil er
 fortsatt usikre resultater. Klienter må selv velge å stole på utstederen og vise
 recordene; publisering gir ikke automatisk et merke i Bluesky eller andre apper.
+
+## Operatørens organisasjonsliste
+
+Forsiden har en søkbar liste over aktive, feilfrie live-publikasjoner fra den
+konfigurerte offentlige utstederen. Den viser navn, organisasjonsnummer, konto,
+siste vellykkede avstemming og lenke til den offentlige recorden. Gamle utstedere,
+fixture-records, ventende eller tilbaketrukne records og publiseringsfeil tas ikke med.
+
+Listen og API-visningen (`/api/state?view=verified`) bruker eksisterende
+operatørinnlogging. Søk på navn, org.nr. og handle skjer mot publikasjonene, med
+25 rader per side. Den avhenger ikke av de 100 siste kontrollene eller
+publiseringshendelsene og skanner ikke fullregisteret. Siden oppdaterer listen
+hvert tiende sekund når fanen er synlig; lesing utløser ingen kontroll eller publisering.

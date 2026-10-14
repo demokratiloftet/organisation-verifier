@@ -23,11 +23,32 @@ export interface Publication {
   updatedAt: string;
 }
 
+export interface VerifiedOrganisation {
+  orgnr: string;
+  name: string;
+  handle: string;
+  did: string;
+  rkey: string;
+  confirmedAt: string;
+}
+export interface VerifiedPage {
+  items: VerifiedOrganisation[];
+  total: number;
+  matching: number;
+  page: number;
+  pages: number;
+}
+
 export class Store {
   readonly db: DatabaseSync;
   private claims = 0;
   constructor(path: string) {
     this.db = new DatabaseSync(path);
+    this.db.function('casefold', { deterministic: true }, (value) =>
+      String(value ?? '')
+        .normalize('NFKC')
+        .toLocaleLowerCase('nb-NO'),
+    );
     this.db.exec(`
       PRAGMA journal_mode=WAL;
       PRAGMA busy_timeout=5000;
@@ -284,6 +305,39 @@ export class Store {
       )
       .all(...(repo && orgnr ? [repo, orgnr] : []))
       .map((row) => JSON.parse(String(row.data)) as Publication);
+  }
+  verifiedOrganisations(repo: string, query = '', requestedPage = 1): VerifiedPage {
+    const scope = `json_extract(data,'$.repo')=? AND json_extract(data,'$.mode')='live'
+      AND json_extract(data,'$.state')='published' AND coalesce(json_extract(data,'$.error'),'')=''`;
+    const search = ` AND instr(casefold(json_extract(data,'$.record.displayName') || ' ' ||
+      json_extract(data,'$.orgnr') || ' ' || json_extract(data,'$.record.handle')),?)>0`;
+    const args = query ? [repo, query.normalize('NFKC').toLocaleLowerCase('nb-NO')] : [repo];
+    const where = scope + (query ? search : '');
+    const total = Number(this.db.prepare(`SELECT count(*) n FROM publications WHERE ${scope}`).get(repo)!.n);
+    const matching = query
+      ? Number(this.db.prepare(`SELECT count(*) n FROM publications WHERE ${where}`).get(...args)!.n)
+      : total;
+    const pages = Math.max(1, Math.ceil(matching / 25));
+    const page = Math.max(1, Math.min(requestedPage, pages));
+    const items = this.db
+      .prepare(
+        `SELECT data FROM publications WHERE ${where}
+      ORDER BY casefold(json_extract(data,'$.record.displayName')),json_extract(data,'$.orgnr'),rkey
+      LIMIT 25 OFFSET ?`,
+      )
+      .all(...args, (page - 1) * 25)
+      .map((row) => {
+        const p = JSON.parse(String(row.data)) as Publication;
+        return {
+          orgnr: p.orgnr,
+          name: p.record.displayName,
+          handle: p.record.handle,
+          did: p.record.subject,
+          rkey: p.rkey,
+          confirmedAt: p.updatedAt,
+        };
+      });
+    return { items, total, matching, page, pages };
   }
   close(): void {
     this.db.close();

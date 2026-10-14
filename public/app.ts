@@ -1,5 +1,5 @@
 import type { Mode, Decision, SavedCheck } from '../src/domain.js';
-import type { Publication } from '../src/store.js';
+import type { Publication, VerifiedPage } from '../src/store.js';
 import type { FixtureState } from '../src/sources.js';
 interface State {
   checks: SavedCheck[];
@@ -152,6 +152,114 @@ function render() {
   });
   $('#history').replaceChildren(...rows);
 }
+let verifiedPage = 1;
+let verifiedQuery = '';
+let verifiedRequest = 0;
+let verifiedSnapshot = '';
+async function refreshVerified() {
+  const request = ++verifiedRequest;
+  const params = new URLSearchParams({ view: 'verified', q: verifiedQuery, page: String(verifiedPage) });
+  try {
+    const response = await fetch(`/api/state?${params}`);
+    if (!response.ok)
+      throw new Error('Kunne ikke hente organisasjonslisten. Prøver igjen ved neste oppdatering.');
+    const data = (await response.json()) as VerifiedPage & { issuer: { did: string; pds: string } | null };
+    if (request !== verifiedRequest) return;
+    verifiedPage = data.page;
+    const snapshot = JSON.stringify([data, verifiedQuery]);
+    if (snapshot === verifiedSnapshot) return;
+    verifiedSnapshot = snapshot;
+    text('#verified-count', `${data.total} verifisert`);
+    text(
+      '#verified-message',
+      data.matching
+        ? verifiedQuery
+          ? `${data.matching} treff av ${data.total} verifiserte organisasjoner.`
+          : `${data.total} organisasjoner har aktiv verifikasjon.`
+        : verifiedQuery
+          ? 'Ingen treff. Prøv et annet navn, organisasjonsnummer eller domene.'
+          : 'Ingen aktive offentlige verifikasjoner ennå.',
+    );
+    $('#verified-rows').replaceChildren(
+      ...data.items.map((item) => {
+        const row = document.createElement('tr');
+        const name = document.createElement('td');
+        const title = document.createElement('strong');
+        title.textContent = item.name;
+        const orgnr = document.createElement('small');
+        orgnr.textContent = `Org.nr. ${item.orgnr}`;
+        name.append(title, orgnr);
+        const account = document.createElement('td');
+        const profile = document.createElement('a');
+        profile.textContent = `@${item.handle}`;
+        profile.href = `https://bsky.app/profile/${encodeURIComponent(item.did)}`;
+        profile.target = '_blank';
+        profile.rel = 'noopener noreferrer';
+        account.append(profile);
+        const confirmed = document.createElement('td');
+        const date = document.createElement('time');
+        date.dateTime = item.confirmedAt;
+        date.textContent = new Intl.DateTimeFormat('nb-NO', {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(new Date(item.confirmedAt));
+        date.title = new Date(item.confirmedAt).toLocaleString('nb-NO');
+        confirmed.append(date);
+        const record = document.createElement('td');
+        if (data.issuer) {
+          const link = document.createElement('a');
+          link.textContent = 'Se record ↗';
+          const url = new URL('/xrpc/com.atproto.repo.getRecord', data.issuer.pds);
+          url.search = new URLSearchParams({
+            repo: data.issuer.did,
+            collection: 'app.bsky.graph.verification',
+            rkey: item.rkey,
+          }).toString();
+          link.href = url.href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.setAttribute('aria-label', `Se offentlig verifikasjon for ${item.name}`);
+          record.append(link);
+        }
+        row.append(name, account, confirmed, record);
+        return row;
+      }),
+    );
+    $('#verified-table-wrap').hidden = !data.items.length;
+    $('#verified-pagination').hidden = data.pages <= 1;
+    text('#verified-page', `Side ${data.page} av ${data.pages}`);
+    element('#verified-prev', HTMLButtonElement).disabled = data.page <= 1;
+    element('#verified-next', HTMLButtonElement).disabled = data.page >= data.pages;
+  } catch (error) {
+    if (request !== verifiedRequest) return;
+    verifiedSnapshot = '';
+    text(
+      '#verified-message',
+      error instanceof Error ? error.message : 'Kunne ikke hente organisasjonslisten.',
+    );
+    text('#verified-count', 'Status ukjent');
+    $('#verified-rows').replaceChildren();
+    $('#verified-table-wrap').hidden = true;
+    $('#verified-pagination').hidden = true;
+  }
+}
+$('#verified-search').addEventListener('submit', (event) => {
+  event.preventDefault();
+  verifiedQuery = element('#verified-query', HTMLInputElement).value.trim();
+  verifiedPage = 1;
+  void refreshVerified();
+});
+$('#verified-prev').addEventListener('click', () => {
+  verifiedPage--;
+  void refreshVerified();
+});
+$('#verified-next').addEventListener('click', () => {
+  verifiedPage++;
+  void refreshVerified();
+});
+void refreshVerified();
 async function refresh() {
   const response = await fetch('/api/state');
   if (!response.ok) throw new Error('Kunne ikke hente status.');
@@ -266,6 +374,7 @@ refresh().catch((error) => {
   text('#notice', error instanceof Error ? error.message : 'Kontrollen feilet.');
 });
 setInterval(() => {
+  if (!document.hidden) void refreshVerified();
   if (automatic && !document.hidden && !document.querySelector('form button:disabled'))
     refresh().catch(() => {
       text('#automation-errors', 'Status kunne ikke oppdateres. Prøver igjen.');
