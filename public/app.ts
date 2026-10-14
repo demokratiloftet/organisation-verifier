@@ -164,6 +164,7 @@ async function refresh() {
     enabled: boolean;
     publishing: boolean;
     privateIssuance: boolean;
+    issuanceScope: 'pilot' | 'all_matching' | null;
     organisations: number;
     queued: number;
     retrying: number;
@@ -179,7 +180,9 @@ async function refresh() {
     automation.publishing
       ? automation.privateIssuance
         ? 'Intern pilot'
-        : 'Utstedelse aktiv'
+        : automation.issuanceScope === 'all_matching'
+          ? 'Automatisk utstedelse til alle som består'
+          : 'Utstedelse til pilotlisten'
       : 'Kun forhåndsvisning',
   );
   text(

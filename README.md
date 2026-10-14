@@ -57,8 +57,8 @@ Bakgrunnstjenesten er nå implementert: strømmet registerimport, varig jobbkø,
 Brreg-endringer, Jetstream v2, periodiske kontroller og en avgrenset offentlig
 publisher. Alt er avslått som standard. Se [automatikk, foreløpig policy og
 pilotoppsett](docs/automation.md) for oppstart og gjenstående aktivering.
-Den offentlige piloten utsteder for Devotta fra Demokratiloftets egen konto; se
-[utsteder og bekreftet pilot](docs/public-issuer.md). Fullregisteret er importert,
+Automatisk offentlig utstedelse kan aktiveres for alle organisasjoner som består,
+fra Demokratiloftets Eurosky-konto; se [utsteder og status](docs/public-issuer.md). Fullregisteret er importert,
 og førstegangsforsøkene er gjennomført; tekniske feil og manuelle vurderinger gjenstår. Se [kort restliste for LOFT-76](docs/roadmap.md).
 
 ![Kontrollgrunnlag og publisering i demoen](docs/media/demo-overview.png)

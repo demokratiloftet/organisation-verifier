@@ -1,4 +1,4 @@
-# Apply only after issuer ownership, pilot organisations and verification policy are agreed.
+# Apply only after issuer ownership, issuance scope and verification policy are agreed.
 services:
   app:
     environment:
@@ -6,7 +6,8 @@ services:
       ISSUER_PDS: ${ISSUER_PDS:?Set the issuer PDS HTTPS origin}
       ISSUER_DID: ${ISSUER_DID:?Set the expected issuer DID}
       ISSUER_IDENTIFIER: ${ISSUER_IDENTIFIER:?Set the issuer login identifier}
-      PILOT_ORGNRS: ${PILOT_ORGNRS:?Set the comma-separated pilot organisation numbers}
+      ISSUANCE_SCOPE: ${ISSUANCE_SCOPE:-pilot}
+      PILOT_ORGNRS: ${PILOT_ORGNRS:-}
       ISSUER_PASSWORD_FILE: /run/secrets/issuer_password
     secrets: [issuer_password]
 secrets:

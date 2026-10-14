@@ -6,7 +6,9 @@ import { Store, type Publication, type PublicationState } from './store.js';
 
 export const collection = 'app.bsky.graph.verification';
 class RecordConflict extends Error {}
+export type IssuanceScope = 'pilot' | 'all_matching';
 export interface RecordRemote {
+  scope?: IssuanceScope;
   mode?: Mode;
   allowedOrgnrs?: ReadonlySet<string>;
   repo: string;
@@ -15,6 +17,7 @@ export interface RecordRemote {
   delete(rkey: string): Promise<void>;
 }
 export interface IssuerConfig {
+  scope?: IssuanceScope;
   private?: boolean;
   service: string;
   did: string;
@@ -56,10 +59,14 @@ async function issuerRemote(
     throw new Error('Issuer PDS must be an HTTPS origin.');
   if (
     !config.did.startsWith('did:') ||
-    !config.orgnrs.length ||
+    !['pilot', 'all_matching'].includes(config.scope ?? 'pilot') ||
+    (privateMode && config.scope === 'all_matching') ||
+    (config.scope !== 'all_matching' && !config.orgnrs.length) ||
     config.orgnrs.some((id) => !/^\d{9}$/.test(id) || id.startsWith('000'))
   )
-    throw new Error('An issuer DID and explicit pilot organisation numbers are required.');
+    throw new Error(
+      'An issuer DID and valid issuance scope (with organisation numbers for pilot) are required.',
+    );
   const session = new CredentialSession(service, (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input);
     if (url.origin !== service.origin) throw new Error('Issuer PDS cannot change endpoints.');
@@ -72,6 +79,7 @@ async function issuerRemote(
   return {
     ...remote,
     mode: 'live',
+    scope: config.scope ?? 'pilot',
     allowedOrgnrs: new Set(config.orgnrs),
     async put(rkey, record) {
       if (!publicHandle(record.handle)) throw new Error('Synthetic handles cannot be published publicly.');
@@ -142,6 +150,10 @@ export function sameRecord(actual: unknown, expected: AppBskyGraphVerification.R
   );
 }
 
+export function allowsOrganisation(remote: RecordRemote, orgnr: string): boolean {
+  return remote.scope === 'all_matching' || !!remote.allowedOrgnrs?.has(orgnr);
+}
+
 // Intent is committed locally before any remote mutation. Retrying always uses the same TID.
 export class Publisher {
   constructor(
@@ -155,19 +167,26 @@ export class Publisher {
       throw new Error('Denne modusen kan ikke publisere til valgt PDS.');
     if (check.mode === 'live') {
       if (
-        (!this.remote.allowedOrgnrs?.has(check.organisation.orgnr) &&
+        (!allowsOrganisation(this.remote, check.organisation.orgnr) &&
           (check.decision === 'match' ||
             !this.store
               .publications(this.remote.repo, check.organisation.orgnr)
               .some((p) => p.mode === 'live' && p.state !== 'revoked'))) ||
         check.policyVersion !== policyVersion
       )
-        throw new Error('Live publication requires an approved pilot organisation and current policy.');
+        throw new Error(
+          'Live publication requires an organisation within the configured scope and current policy.',
+        );
       if (
         check.identity &&
         (!publicHandle(check.identity.handle) || new URL(check.identity.pds).protocol !== 'https:')
       )
         throw new Error('Synthetic identities cannot be published publicly.');
+    }
+    if (check.mode === 'live' && check.decision === 'match') {
+      const age = Date.now() - Date.parse(check.checkedAt);
+      if (check.registrySource === 'index' || !Number.isFinite(age) || age < 0 || age > 5 * 60_000)
+        throw new Error('Publication requires a fresh live check, not cached registry evidence.');
     }
     if (check.decision === 'unavailable') return;
     const identity = check.decision === 'match' ? check.identity : undefined;
@@ -234,7 +253,12 @@ export class Publisher {
           throw new RecordConflict('Record-nøkkelen har annet innhold. Manuell kontroll kreves.');
         // A registry/event update may arrive while the remote read is in flight.
         // Recheck the worker's evidence/lease gate immediately before a new write.
-        if (!actual && !this.mayIssue()) throw new Error('Verification evidence changed before issuance.');
+        if (
+          !actual &&
+          (!this.mayIssue() ||
+            (this.remote.mode === 'live' && !allowsOrganisation(this.remote, publication.orgnr)))
+        )
+          throw new Error('Verification evidence changed before issuance.');
         publication.uri = actual
           ? `at://${publication.repo}/${collection}/${publication.rkey}`
           : await this.remote.put(publication.rkey, publication.record);

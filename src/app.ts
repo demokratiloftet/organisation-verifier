@@ -117,6 +117,7 @@ export async function createApp(options: AppOptions) {
     enabled: options.automation?.enabled ?? false,
     publishing: !!options.automation?.issuer,
     privateIssuance: options.automation?.issuer?.private ?? false,
+    issuanceScope: options.automation?.issuer ? (options.automation.issuer.scope ?? 'pilot') : null,
     ...store.status(),
   }));
   app.get('/api/state', async () => {

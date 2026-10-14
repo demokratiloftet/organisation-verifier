@@ -5,7 +5,7 @@ pool behandler varige jobber, med fire samtidige kontroller som standard. Ingen 
 innloggingsplattform er nødvendig. Demonstrasjonsfanen og manuelle Brreg-oppslag
 beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 
-## Foreløpige regler som må bekreftes før offentlig pilot
+## Regler for automatisk utstedelse
 
 - Vi bekrefter domenetilknytning til en Brreg-enhet, ikke juridisk fullmakt.
 - Registrert host prøves først. Hvis ingen konto er toveis bekreftet der, kan én
@@ -25,12 +25,17 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 - Usikre oppslag prøves igjen etter 30 sekunder, deretter eksponentielt. Kjente
   kontoer og pilot-/publiseringsjobber har maksimalt én time mellom forsøk; andre
   vedvarende feil har maksimalt ett døgn. Nye relevante hendelser fremskynder kontrollen. Etter syv dager uten en fullført kontroll trekkes eksisterende verifikasjon
-  tilbake. En vellykket kontroll kan utstede på nytt. Dette er en foreslått policy.
+  tilbake. En vellykket kontroll kan utstede på nytt. Dette er gjeldende policy.
 - Ny utstedelse krever komplett import, ferdig registeravstemming og registerpoll
   innen fem minutter. Tilbaketrekking kan fortsette under registerfeil.
-- Utstedelse begrenses til en eksplisitt pilotliste. Fjerner man en enhet fra
-  listen, trekkes tidligere utstedelse tilbake ved neste kontroll. Å slå av
+- Utstedelsesomfang velges eksplisitt: `ISSUANCE_SCOPE=pilot` krever `PILOT_ORGNRS`;
+  `ISSUANCE_SCOPE=all_matching` tillater alle organisasjoner som består kontrollene.
+  Standard er fortsatt pilot. Ingen liste omgår kravene. Bytte tilbake til pilot
+  trekker utstedelser utenfor listen tilbake ved neste kontroll. Å slå av
   offentlig utstedelse stopper alle writes; det tilbakekaller ikke automatisk.
+- Publisheren avviser positive kontroller fra lokalindeksen og kontroller eldre enn
+  fem minutter. Ved oppstart med `all_matching` kølegges kjente kontoer for fersk
+  kontroll; gamle treff publiseres aldri direkte. Nyoppdagede treff utstedes fortløpende.
 - VPS-en har HTTPS og en felles operatørinnlogging. Flere tilgangsroller er ikke innført.
 
 Policyversjonen `www-psl-v3` lagres med nye kontroller. Ingen prøveidentiteter
@@ -146,8 +151,10 @@ kontoenes domener og registrerte navn, kjør fullimport og gjennomgå forhåndsv
 Synlig Bluesky-merke avhenger av klientens tillit til utstederen og loves ikke.
 
 Legg følgende ikke-hemmelige innstillinger i den ignorerte `.env`-filen:
-`ISSUER_PDS` (HTTPS-origin), `ISSUER_DID`, `ISSUER_IDENTIFIER` og `PILOT_ORGNRS`
-(kommadelt liste). Legg utstederens app-passord i `.runtime/issuer-password`, med
+`ISSUER_PDS` (HTTPS-origin), `ISSUER_DID`, `ISSUER_IDENTIFIER`, `ISSUANCE_SCOPE=pilot`
+og `PILOT_ORGNRS` (kommadelt liste). For automatisk utstedelse til alle som består,
+sett `ISSUANCE_SCOPE=all_matching`; pilotlisten kan da være tom. Privat utstedelse
+støtter bare pilotomfang. Legg utstederens app-passord i `.runtime/issuer-password`, med
 lesetilgang bare for operatøren og containerens UID 1000. Ikke legg passord i Git,
 kommandolinjeargumenter eller logger. Bruk en dedikert utstederkonto.
 
@@ -165,7 +172,7 @@ komplett konfigurasjon avvises. Ingen HTTP-rute kan slå på publisering.
 Etter oppstart, gjennomgå en publisert record på utstederens PDS, gjenta kontrollen,
 og gjennomfør en avtalt tilbaketrekking. Dette krever en faktisk utsteder og
 målorganisasjon; automatiske tester mot den isolerte PDS-en erstatter ikke denne
-akseptansen. Ingen offentlig pilot er aktivert av utviklingsarbeidet.
+akseptansen. Se [gjeldende produksjonsstatus](public-issuer.md).
 
 ## Backup, gjenoppretting og oppgradering
 

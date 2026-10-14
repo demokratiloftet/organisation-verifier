@@ -716,3 +716,69 @@ test('a shared-domain conflict discovered during the publisher read prevents a n
     store.close();
   }
 });
+
+test('all_matching issues outside the pilot, keeps the record on retry and revokes a failed recheck', async () => {
+  const store = new Store(':memory:');
+  const wire = remote();
+  wire.client.scope = 'all_matching';
+  wire.client.allowedOrgnrs = new Set();
+  ready(store);
+  try {
+    for (let i = 0; i < 2; i++) {
+      store.enqueue(org.orgnr);
+      await workOnce(store, wire.client, async () => positive);
+      assert.equal(wire.records.size, 1);
+    }
+    assert.equal(store.publications().length, 1);
+    store.enqueue(org.orgnr);
+    await workOnce(store, wire.client, async () => ({ ...positive, decision: 'needs_review' }));
+    assert.equal(wire.records.size, 0);
+    assert.equal(store.publications()[0]!.state, 'revoked');
+  } finally {
+    store.close();
+  }
+});
+
+test('all_matching retains freshness, registry, shared-domain and uncertain-result gates', async () => {
+  for (const blocked of ['index', 'old', 'future', 'shared', 'registry', 'unavailable', 'needs_review']) {
+    const store = new Store(':memory:');
+    const wire = remote();
+    wire.client.scope = 'all_matching';
+    wire.client.allowedOrgnrs = new Set();
+    ready(store);
+    let check = { ...positive };
+    if (blocked === 'index') check.registrySource = 'index';
+    if (blocked === 'old') check.checkedAt = new Date(Date.now() - 6 * 60_000).toISOString();
+    if (blocked === 'future') check.checkedAt = new Date(Date.now() + 60_000).toISOString();
+    if (blocked === 'shared') store.upsertOrganisation({ ...org, orgnr: '123456789' });
+    if (blocked === 'registry') store.set('registry.lastPoll', '2000-01-01T00:00:00Z');
+    if (blocked === 'unavailable' || blocked === 'needs_review') check.decision = blocked;
+    try {
+      store.enqueue(org.orgnr);
+      await workOnce(store, wire.client, async () => check);
+      assert.equal(wire.records.size, 0, blocked);
+      assert.equal(store.publications().length, 0, blocked);
+    } finally {
+      store.close();
+    }
+  }
+});
+
+test('returning from all_matching to pilot withdraws previously eligible organisations', async () => {
+  const store = new Store(':memory:');
+  const wire = remote();
+  wire.client.scope = 'all_matching';
+  wire.client.allowedOrgnrs = new Set();
+  ready(store);
+  try {
+    store.enqueue(org.orgnr);
+    await workOnce(store, wire.client, async () => positive);
+    assert.equal(wire.records.size, 1);
+    wire.client.scope = 'pilot';
+    store.enqueue(org.orgnr);
+    await workOnce(store, wire.client, async () => positive);
+    assert.equal(wire.records.size, 0);
+  } finally {
+    store.close();
+  }
+});

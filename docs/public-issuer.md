@@ -8,7 +8,8 @@ fra den dedikerte Eurosky-kontoen. Operatørsiden er fortsatt
 - Utsteder-DID: `did:plc:ajyco6mbknwtlx567ugu4wer`
 - PDS: `https://eurosky.social`
 - Collection: `app.bsky.graph.verification`
-- Aktiv pilot: DEVOTTA AS (`922669708`). Andre organisasjoner kontrolleres uten offentlig utstedelse.
+- Utstedelsesomfang: `all_matching` åpner for alle organisasjoner som består kontrollene.
+  Pilotmodus med eksplisitt liste beholdes som et alternativ. Se akseptanseloggen nedenfor.
 
 DNS TXT på `_atproto.er-verifier.demokratiloftet.no` peker til denne DID-en.
 DID-dokumentet peker tilbake til handle og Eurosky. Utstederkontoen trenger ikke
@@ -58,7 +59,8 @@ Kontrollhistorikk og den gamle kontoen beholdes. Se
 ## Drift og hemmeligheter
 
 Eksisterende applikasjonsbilde og kontrollregler er beholdt. Bare utstederens PDS,
-DID, identifier og passordfil ble endret. Pilotlisten er fortsatt kun Devotta.
+DID, identifier og passordfil ble endret ved kontoovergangen. Da var pilotlisten kun Devotta.
+Den etterfølgende utvidelsen bruker `ISSUANCE_SCOPE=all_matching`.
 Brreg-importen ble ikke kjørt på nytt. Worker- og endringsbehandling fortsetter.
 
 Et eget app-passord uten privilegert tilgang ble opprettet av operatøren og sendt
