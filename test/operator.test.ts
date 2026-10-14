@@ -54,6 +54,7 @@ test('internet operator UI requires HTTPS and authenticates every route before d
       '/app.js',
       '/api/state',
       '/api/state?view=verified',
+      '/api/state?view=diagnostics&q=multiarc.no',
       '/api/state?view=identity&orgnr=922669708',
       '/api/automation',
       '/health',
@@ -95,6 +96,16 @@ test('internet operator UI requires HTTPS and authenticates every route before d
     assert.equal(verified.statusCode, 200);
     assert.deepEqual(verified.json().items, []);
     assert.equal(verified.json().issuer, null);
+    const diagnostics = await app.inject({
+      url: '/api/state?view=diagnostics&q=multiarc.no',
+      headers: authenticated,
+    });
+    assert.equal(diagnostics.statusCode, 200);
+    assert.deepEqual(diagnostics.json(), { items: [], truncated: false, recent: [] });
+    assert.equal(
+      (await app.inject({ url: '/api/state?view=diagnostics&q=invalid', headers: authenticated })).statusCode,
+      400,
+    );
     assert(!verified.body.includes(operatorCredentials));
     assert.equal(
       (await app.inject({ url: '/api/state?view=identity', headers: authenticated })).statusCode,

@@ -544,3 +544,25 @@ a:focus-visible {
   font-size: 17px;
   margin-top: 24px;
 }
+
+#diagnostics-panel {
+  scroll-margin-top: 24px;
+}
+.diagnostic-card {
+  border-top: 1px solid var(--line);
+  padding: 18px 0;
+  overflow-wrap: anywhere;
+}
+.diagnostic-card h3 {
+  font-size: 18px;
+}
+.diagnostic-card details {
+  margin: 14px 0;
+}
+.diagnostic-card summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+.diagnostic-card .evidence {
+  margin: 12px 0;
+}

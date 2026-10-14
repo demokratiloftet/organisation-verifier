@@ -1,6 +1,6 @@
 import type { Mode, Decision, SavedCheck } from '../src/domain.js';
 import type { AccountEvidence } from '../src/identity.js';
-import type { Publication, VerifiedPage, VerifiedOrganisation } from '../src/store.js';
+import type { Publication, VerifiedPage, VerifiedOrganisation, Store } from '../src/store.js';
 import type { FixtureState } from '../src/sources.js';
 interface State {
   checks: SavedCheck[];
@@ -354,6 +354,160 @@ $('#verified-next').addEventListener('click', () => {
   void refreshVerified();
 });
 void refreshVerified();
+const dateTime = (value: string | number) => new Date(value).toLocaleString('nb-NO');
+let diagnosticsRequest = 0;
+function paragraph(value: string, className = 'reason') {
+  const node = document.createElement('p');
+  node.className = className;
+  node.textContent = value;
+  return node;
+}
+function diagnosticCheck(check: SavedCheck) {
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = `${dateTime(check.checkedAt)} · ${labels[check.decision]}`;
+  const evidence = document.createElement('div');
+  evidence.className = 'evidence';
+  evidence.append(
+    field('NAVN I BRREG', check.organisation.name),
+    field('PROFILNAVN PÅ KONTOEN', check.identity?.displayName),
+    field('HJEMMESIDE I BRREG', check.organisation.website),
+    field('KONTROLLERT DOMENE', check.candidate),
+    field('KONTOENS DID', check.identity?.did, true),
+    field('KONTOSERVER', check.identity?.pds),
+    field(
+      'REGISTERGRUNNLAG',
+      check.registrySource === 'index' ? 'Lokal Brreg-indeks' : 'Direkte Brreg-oppslag',
+    ),
+    field('REGELVERSJON', check.policyVersion),
+  );
+  details.append(summary, paragraph(check.reason), evidence);
+  return details;
+}
+async function refreshDiagnostics() {
+  const request = ++diagnosticsRequest;
+  const query = element('#diagnostics-query', HTMLInputElement).value.trim();
+  text('#diagnostics-message', 'Henter lagrede kontroller …');
+  $('#diagnostics-results').replaceChildren();
+  try {
+    const params = new URLSearchParams({ view: 'diagnostics', q: query });
+    const response = await fetch(`/api/state?${params}`);
+    if (!response.ok)
+      throw new Error(
+        response.status === 400
+          ? 'Skriv et organisasjonsnummer eller et domene uten sti.'
+          : 'Kunne ikke hente kontroller. Prøv igjen.',
+      );
+    const data = (await response.json()) as ReturnType<Store['diagnostics']>;
+    if (request !== diagnosticsRequest) return;
+    text(
+      '#diagnostics-message',
+      query
+        ? data.items.length
+          ? `${data.items.length} organisasjon(er) funnet.${data.truncated ? ' Flere deler domenet; søk med organisasjonsnummer.' : ''}`
+          : 'Ingen treff i det lokale registeret. Prøv organisasjonsnummeret; domenet må være registrert hos Brreg.'
+        : 'Siste saker til oppfølging: opptil ti organisasjoner fra de siste 100 kontrollene med navneavvik, vurderingsbehov eller tekniske feil. Dette er et utvalg, ikke en fullstendig feilliste.',
+    );
+    for (const item of data.items) {
+      const card = document.createElement('article');
+      card.className = 'diagnostic-card';
+      const title = document.createElement('h3');
+      title.textContent = `${item.organisation.name} · ${item.organisation.orgnr}`;
+      const latest = item.checks[0];
+      card.append(
+        title,
+        paragraph(
+          latest
+            ? `Siste lagrede kontroll: ${labels[latest.decision]}. ${latest.reason}`
+            : 'Ingen lagret kontroll tilgjengelig. Organisasjonen er ikke dokumentert godkjent.',
+        ),
+      );
+      if (latest?.decision === 'needs_review' && latest.identity)
+        card.append(
+          paragraph(
+            'Navneregelen er streng: profilnavnet må samsvare med Brreg-navnet. Store/små bokstaver og ekstra mellomrom ignoreres. Andre vurderingsbehov står i årsaken ovenfor.',
+            'muted',
+          ),
+        );
+      if (latest?.decision === 'unavailable')
+        card.append(
+          paragraph(
+            'Teknisk usikkerhet er ikke et bekreftet avslag. Se køstatus og publiseringsstatus nedenfor.',
+            'muted',
+          ),
+        );
+      const job = item.job;
+      card.append(
+        paragraph(
+          job
+            ? job.running
+              ? 'Bakgrunnskontroll kjører nå.'
+              : `I kø${job.attempts ? ` for nytt forsøk (${job.attempts} mislykkede forsøk)` : ''}. Tidligst ${dateTime(job.due)}.`
+            : item.nextCheck
+              ? `Neste bakgrunnskontroll er planlagt ${dateTime(item.nextCheck)}. Endringshendelser kan utløse kontroll tidligere.`
+              : 'Ingen kontrolltid tilgjengelig. Organisasjonen kan vente på planlegging.',
+          'muted',
+        ),
+      );
+      card.append(paragraph('Publisering fra vår nåværende utsteder:', 'muted'));
+      if (!item.publications.length)
+        card.append(paragraph('Ingen publisert verifikasjon registrert fra denne utstederen.'));
+      for (const publication of item.publications)
+        card.append(
+          paragraph(
+            `${publicationLabels[publication.state]} · ${dateTime(publication.updatedAt)}${publication.error ? ` · ${publication.error}` : ''}`,
+          ),
+        );
+      item.checks.forEach((check, index) => {
+        const details = diagnosticCheck(check);
+        details.open = index === 0;
+        card.append(details);
+      });
+      if (item.checks.length)
+        card.append(
+          paragraph(
+            'Viser opptil 20 siste lagrede kontroller. Et samsvar er ikke i seg selv en bekreftet publisering.',
+            'muted',
+          ),
+        );
+      $('#diagnostics-results').append(card);
+    }
+    for (const check of data.recent) {
+      const card = document.createElement('article');
+      card.className = 'diagnostic-card';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'account-evidence-button';
+      button.textContent = `${check.organisation.name} · ${check.organisation.orgnr}`;
+      button.addEventListener('click', () => {
+        element('#diagnostics-query', HTMLInputElement).value = check.organisation.orgnr;
+        void refreshDiagnostics();
+      });
+      card.append(
+        button,
+        paragraph(`${labels[check.decision]} · ${dateTime(check.checkedAt)}`, 'muted'),
+        paragraph(check.reason),
+      );
+      $('#diagnostics-results').append(card);
+    }
+    if (!query && !data.recent.length)
+      $('#diagnostics-results').append(
+        paragraph(
+          'Ingen åpne saker i dette utvalget. Søk etter en bestemt organisasjon for å se kontrollene.',
+        ),
+      );
+  } catch (error) {
+    if (request !== diagnosticsRequest) return;
+    text('#diagnostics-message', error instanceof Error ? error.message : 'Kunne ikke hente kontroller.');
+    $('#diagnostics-results').replaceChildren();
+  }
+}
+$('#diagnostics-search').addEventListener('submit', (event) => {
+  event.preventDefault();
+  void refreshDiagnostics();
+});
+// No repeated scans while the operator reads a historical result.
+void refreshDiagnostics();
 async function refresh() {
   const response = await fetch('/api/state');
   if (!response.ok) throw new Error('Kunne ikke hente status.');

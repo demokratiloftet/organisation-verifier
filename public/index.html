@@ -31,6 +31,7 @@
           «Se kontokobling» viser hvor kontoen er lagret og hvordan domenet peker til konto-ID-en. Bluesky er
           en valgfri appvisning av kontoen.
         </p>
+        <p><a href="#diagnostics-panel">Mangler en organisasjon? Se kontroller og årsaker →</a></p>
         <form id="verified-search" role="search">
           <label for="verified-query">Finn en organisasjon</label>
           <div class="form-row">
@@ -76,6 +77,34 @@
         <p class="muted">
           Listen oppdateres automatisk. Tilbaketrukne verifikasjoner og records med publiseringsfeil vises
           ikke. «Se record» åpner den offentlige bekreftelsen som JSON.
+        </p>
+      </section>
+      <section id="diagnostics-panel" class="verified-panel" aria-labelledby="diagnostics-title">
+        <h2 id="diagnostics-title">Feilsøk verifisering</h2>
+        <p class="reason">
+          Se lagrede kontroller, hva som stoppet dem og status for publisering. Oppslag her endrer ingenting
+          og gir ingen unntak fra verifiseringsreglene.
+        </p>
+        <form id="diagnostics-search" role="search">
+          <label for="diagnostics-query">Organisasjonsnummer eller registrert domene</label>
+          <div class="form-row">
+            <input
+              id="diagnostics-query"
+              type="search"
+              maxlength="100"
+              placeholder="991965726 eller multiarc.no"
+            />
+            <button class="primary" type="submit">Se kontroller</button>
+          </div>
+          <small
+            >Bruk hele domenet eller organisasjonsnummeret. Tomt søk viser siste saker til oppfølging.</small
+          >
+        </form>
+        <p id="diagnostics-message" class="reason" role="status" aria-live="polite"></p>
+        <div id="diagnostics-results"></div>
+        <p class="muted">
+          Historikken beholdes i opptil 90 dager. Ingen konto funnet er normalt, ikke en teknisk feil.
+          Planlagt kontrolltid er ikke en garanti; kø og tilgjengelighet kan gi forsinkelser.
         </p>
       </section>
       <dialog id="account-dialog" aria-labelledby="account-title">
