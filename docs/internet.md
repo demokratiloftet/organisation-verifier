@@ -1,64 +1,58 @@
-# Verifikasjonsdemo på internett
+# Operatørside på internett
 
-Adresse: **https://verifikasjon.dev.demokratiloftet.no:8443/**.
-Tailscale er ikke nødvendig. Nettleseren ber om operatørbruker/passord.
-Port 8443 er valgt for å bevare den eksisterende inngangen til kalender og sosial app.
+Demokratiloftets operatørside er
+**https://verifikasjon.demokratiloftet.no/** og krever innlogging.
+Oppsettet er beskrevet per 14. oktober 2026; [utstederstatus](public-issuer.md)
+og [driftsnotatet](automatic-issuance-2026-10-14.md) dokumenterer utrullingen.
 
-## Hva dette bekrefter
-
-Brreg oppgir organisasjonens hjemmeside. Vi sjekker at domenet peker på en
-bestemt atproto-konto, at kontoen peker tilbake, og at profilnavnet samsvarer.
-Man må kunne endre domenets DNS eller en bestemt fil på nettsiden for å sette
-opp denne koblingen. Å skrive firmanavnet eller bruke en e-postadresse er ikke nok.
-Dette bekrefter domenetilknytning, ikke at personen bak kontoen har juridisk fullmakt.
-
-Demoen kan publisere, gjenta og trekke tilbake verifikasjoner i en isolert PDS.
-Brreg-fanen gjør ekte oppslag, men publiserer ingenting. Offentlig utstedelse er
-avslått. Fullimport ble kjørt 13. oktober 2026 med 1 177 860 enheter. Endringsavstemming
-og kontrollkøen kjører; hele førstegangskontrollen er ikke ferdig.
-Foreløpige regler og valgene før en offentlig pilot står i [automation.md](automation.md).
+Brreg-fanen gjør ferske oppslag og lagrer resultatet uten å publisere.
+Bakgrunnsarbeideren har separat aktivering og kan utstede fra den konfigurerte
+Eurosky-kontoen med `all_matching`. Lokal standardkonfigurasjon har dette avslått.
+Se [kontrollregler og aktivering](automation.md).
 
 ## Data og tilgang
 
-SQLite, kontrollhistorikk og test-PDS kjører på VPS-en. Det er ingen ekstern
-appdatabase, analyseplattform eller offentlig videredistribusjon av testrecords.
-Innloggede operatører kan lese historikken og kjøre demoen; resultatene leveres
-til nettleseren deres. Dette er en felles operatørinnlogging, ikke åpne brukerkontoer.
+SQLite og kontrollhistorikk lagres hos operatøren. Brreg-, DNS-, DID-, profil-
+og Jetstream-oppslag bruker offentlige kilder. Kildene kan se forespørslene;
+operatør- og utstederpassord sendes ikke med disse oppslagene. Utstederens
+app-passord brukes bare mot den konfigurerte PDS-en.
 
-Brreg-, DNS-, DID-, profil- og Jetstream-oppslag bruker offentlige kilder. Kildene
-kan se forespørslene. Innlogging og hemmeligheter sendes ikke til disse kildene.
-Fixture-PDS/PLC har ingen publiserte porter og kan ikke kontakte internett.
-Ingen innlogging, testrecord eller databaseinnhold lagres i GitHub.
+Innloggede operatører kan lese historikk og kjøre kontroller. Dette er en felles
+operatørinnlogging, ikke åpne brukerkontoer. Verifikasjonsrecords fra den offentlige
+utstederen kan leses av andre; lokal kontrollhistorikk er ikke et offentlig API.
+Fixture-PDS/PLC har ingen vertsporter eller internettilgang.
 
-## Drift
+## HTTPS-oppsett
 
-Bruk samme Compose-prosjekt og eksisterende datavolum. Offentlig oppstart krever
-`compose.internet.yaml`, valgt image og filen `.runtime/operator-credentials`
-med `bruker:tilfeldig-passord` (minst 32 tegn i passordet). Filen skal ha modus
-0600 og eies av containerens UID 1000. Aldri legg passord i `.env`, Git eller URL.
+`compose.internet.yaml` er et **miljøspesifikt eksempel** for den tidligere direkte
+HTTPS-adressen `verifikasjon.dev.demokratiloftet.no:8443`. Det er ikke et ferdig
+oppsett for andre domener eller en kopi av den nåværende gatewaykonfigurasjonen.
+Tilpass origin, binding og sertifikatmappe til ditt miljø før bruk.
 
-Det eksisterende sertifikatet eksporteres til
-`/root/server-infrastructure/public-demo/.tls`. Appen monterer mappen skrivebeskyttet
-og leser nye sertifikater hvert minutt. Det eksisterende fornyelsesoppsettet beholdes.
+Appen krever følgende ved HTTPS:
 
-På VPS-en ligger det godkjente HTTPS-oppsettet direkte i
-`/root/organisation-verifier/compose.yaml`, slik at den vanlige deploy-mottakeren
-ikke kan falle tilbake til ubeskyttet HTTP. Kilde-overlayet bevares ved siden av.
-Appen avviser offentlig vertsnavn uten innlogging og nekter passord over HTTP.
+- `APP_ORIGIN` med nøyaktig adresse og eventuell port.
+- `OPERATOR_CREDENTIALS_FILE` med `bruker:tilfeldig-passord`, minst 32 tegn i
+  passordet. Bruk bokstaver, siffer, bindestrek eller understrek.
+- `TLS_CERT_FILE` og `TLS_KEY_FILE` med gyldig sertifikat og privat nøkkel.
+
+Legg hemmeligheter i beskyttede filer utenfor Git. Compose-eksemplet monterer
+`.runtime/operator-credentials` som secret. Den må kunne leses av containerens
+UID 1000, men ikke av andre brukere. Bruk modus 0600 og beskytt foreldremappen.
+Ikke legg passord i URL, kommandolinjeargumenter eller logger.
+
+Appen avviser offentlig vertsnavn uten innlogging og operatørpassord over HTTP.
 Alle sider og API-ruter krever innlogging, også health/readiness. Host og Origin
-kontrolleres i tillegg. Bruk `node dist/src/healthcheck.js` inne i appcontaineren;
-ekstern kontroll skal alltid validere sertifikatet normalt.
+kontrolleres i tillegg. Sertifikatfilene kontrolleres hvert minutt og lastes på
+nytt ved endring; fornyelsen må håndteres av driftsmiljøet.
 
-Før utrulling: pause automatisk deploy, ta en kontrollert SQLite-backup og behold
-forrige Compose-oppsett/image. Bygg fra en ren Git-release, oppgrader bare appen,
-og behold fixture-containeren og volumet. Kontroller anonym 401, gyldig innlogging,
-fremmed Origin/Host 403, demoens publisering/tilbaketrekking og fixture-isolasjon.
+## Oppdatering
 
-Automatikken er merget til `main` i PR #6. Automatisk deploy kan aktiveres etter
-kontrollert utrulling av samme `main`-versjon; behold HTTPS-oppsettet og volumet.
-Ikke kjør gamle images over nytt skjema ved et uhell. Backup og tidligere release ligger under
-`/root/loftet-rollbacks/verifier-20261012`.
+Behold Compose-prosjekt, volum, utstederkonfigurasjon og hemmeligheter ved oppgradering.
+Ta SQLite-backup og behold forrige image. Bygg fra kontrollert kode og oppgrader
+bare appen ved vanlige kodeendringer. Kontroller anonym 401, gyldig innlogging,
+fremmed Host/Origin 403 og readiness. Ekstern kontroll skal validere TLS normalt.
 
-Ved rollback: steng den offentlige porten før gammel app uten innlogging startes.
-Gjenopprett forrige godkjente Compose/image og kontroller loopback-demoen. Ikke
-slett eller erstatt datavolumet ved en vanlig kode-rollback.
+`node dist/src/healthcheck.js` er en lokal liveness-sjekk inne i appcontaineren.
+`/ready` kontrollerer også bakgrunnstjenestens ferskhet når automatikk er aktiv.
+Se [drift](operations.md) og [backup/restore](automation.md).

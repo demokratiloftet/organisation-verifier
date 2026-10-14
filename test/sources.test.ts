@@ -145,3 +145,17 @@ test('Brreg 410 is a removed entry, not an endless transient retry; server failu
     /503/,
   );
 });
+
+test('source errors cannot leak request details into saved checks or operator responses', async () => {
+  const failure = async (): Promise<never> => {
+    throw new Error('Request failed: Authorization: Bearer sensitive-request-value');
+  };
+  for (const check of [
+    await liveCheck(org.orgnr, failure),
+    await liveCheck(org.orgnr, async () => org, failure),
+  ]) {
+    assert.equal(check.decision, 'unavailable');
+    assert.match(check.reason, /oppslaget feilet/);
+    assert.doesNotMatch(JSON.stringify(check), /Authorization|sensitive-request-value/);
+  }
+});

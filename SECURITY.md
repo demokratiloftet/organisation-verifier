@@ -1,8 +1,9 @@
 # Security and maintenance
 
-These are synthetic-data demos. A passing audit is not a guarantee of security.
-Do not put personal data or real identity evidence in the fixtures. Private
-GitHub visibility does not make committed credentials safe.
+The verifier reads public registry and account data. Public issuance is opt-in;
+the local demo uses synthetic data on an isolated PDS. A passing audit is not a
+guarantee of security. Do not put real credentials or identity evidence in the
+fixtures. Repository visibility does not make committed credentials safe.
 
 - Report suspected vulnerabilities privately to an organisation maintainer.
   Do not include tokens, passwords, private keys, database contents or personal

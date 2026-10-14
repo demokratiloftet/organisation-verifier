@@ -28,46 +28,14 @@ GitHub-autodeploy (`DEMO_DEPLOY_ENABLED`) er fortsatt avslått etter den kontrol
 utrullingen. Ikke bygg den eldre checkouten i `/root/organisation-verifier`.
 Se [akseptanse og rollback](automatic-issuance-2026-10-14.md).
 
-**Oppdatert 12. oktober 2026:** Den nyeste demoen har autentisert HTTPS på
-[verifikasjon.dev.demokratiloftet.no:8443](https://verifikasjon.dev.demokratiloftet.no:8443/).
-Se [gjeldende internettoppsett](internet.md). SSH-tunnelen nedenfor beskriver den
-tidligere, lokale driftsmodellen.
+Operatørsiden er [verifikasjon.demokratiloftet.no](https://verifikasjon.demokratiloftet.no/).
+Se [tilgang og HTTPS](internet.md). Oppsettet er miljøspesifikt; lokal Compose
+skal ikke kopieres over produksjonskonfigurasjonen.
 
-### Tidligere loopback-demo
-
-Tjenesten ligger separat i `/root/organisation-verifier` på prosjektets VPS. Den benytter eget Compose-prosjekt, eget volum og egne nett. Det eksisterende `server-infrastructure`-oppsettet og domenene berøres ikke.
-
-Webappen på VPS-en er bare tilgjengelig over loopback. For demonstrasjon fra egen maskin må lokal app på samme port stoppes først:
-
-```sh
-docker compose stop app
-ssh -N -L 127.0.0.1:3012:127.0.0.1:3012 root@187.124.129.149
-```
-
-La SSH-terminalen stå åpen. Åpne **http://127.0.0.1:3012**. SSH er tilgangskontrollen for denne operatørdemoen; det finnes ingen innlogging i appen. Ikke bind porten til `0.0.0.0` eller sett en offentlig proxy foran operatørendepunktene.
-
-Under oppsettet er det startet en bakgrunnstunnel fra denne arbeidsmaskinen med kontrollsocket `.runtime/vps.sock`. Demo-adressen peker dermed på VPS-en. Før du starter appen lokalt igjen, avslutt tunnelen fra repo-mappen:
-
-```sh
-ssh -S .runtime/vps.sock -O exit root@187.124.129.149
-pnpm demo:up
-```
-
-På VPS-en:
-
-```sh
-cd /root/organisation-verifier
-docker compose ps
-docker compose exec -T app node dist/test/integration.js
-docker compose logs --tail=50 app fixture
-```
-
-Vanlige appoppdateringer deployes automatisk etter grønne kontroller på `main`.
-Den kjørende koden bygges fra en separat release under
-`/var/lib/loftet-deploy/organisation-verifier/releases/`; `current.json` i
-deploy-katalogen angir commit og image. `/root/organisation-verifier` eier fortsatt
-godkjent Compose-oppsett. Ikke bygg denne eldre kildekopien på nytt for en vanlig
-appoppdatering.
+Kjørende kode bygges fra en separat release under
+`/var/lib/loftet-deploy/organisation-verifier/releases/`. `/root/organisation-verifier`
+eier det godkjente Compose-oppsettet. Ved oppdatering beholdes eksisterende volum,
+nett, HTTPS og utstederinnstillinger.
 
 Fixture- eller Compose-endringer krever en separat driftsutrulling med automatisk
 deploy satt på pause, backup og gjennomgått kildekode. Ikke kopier lokale data,
@@ -82,13 +50,14 @@ oppretter et nytt testnett neste gang.
 - `docker compose down` beholder SQLite-volumet. Unngå `down -v` med mindre du uttrykkelig ønsker å slette historikken.
 - En feil i et PDS-kall lagres som publiseringsfeil; kjør kontrollen på nytt for avstemming ved samme nøkkel. Standarddemoen har ingen scheduler; den valgfrie bakgrunnstjenesten håndterer automatiske gjenforsøk. Se [automatikk](automation.md).
 
-Dette er et disponibelt testnett, ikke en backup-/migrasjonsløsning for en produksjons-PDS. Produksjonsbackup, overvåking, retensjon og rollestyrt operatørtilgang er egne oppgaver.
+Fixture er et disponibelt testnett. For den varige verifikatordatabasen, se
+[backup, restore, retensjon og overvåking](automation.md).
 
 ## Automatisk appoppdatering
 
-Etter grønne `Check`-kontroller på `main` oppdaterer GitHub Actions bare
+Når `DEMO_DEPLOY_ENABLED=true`, vil grønne `Check`-kontroller på `main` oppdatere bare
 app-containeren via den begrensede SSH-mottakeren i infrastrukturrepoet.
-`DEMO_DEPLOY_ENABLED=true` er aktivert og testet på VPS-en. Workflow-tokenet har bare lesetilgang
+Dette er avslått i driftsstatusen ovenfor. Workflow-tokenet har bare lesetilgang
 til dette repoet og lagres ikke på VPS-en. SSH-nøkkelen har ingen vanlig shell.
 
 SQLite-volumet beholdes. En mislykket helsesjekk bytter tilbake til forrige image.

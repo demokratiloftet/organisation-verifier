@@ -113,3 +113,20 @@ returnerte samme 112 942 kandidater som den gamle: 43–67 ms over tre målinger
 mot 191–817 ms med gammel indeks. Tallene inkluderer materialisering av resultatet
 og påvirkes av cache/GC; `EXPLAIN QUERY PLAN` bekrefter dekkende indeks. Kopien
 ble slettet med containeren; produksjonsdatabasen ble ikke brukt som testdatabase.
+
+## Gjennomgang før offentlig repository — 14. oktober 2026
+
+- Gått gjennom kildeadaptere, kontrollpolicy, worker, lagring, publisering,
+  operatørtilgang og deploy-konfigurasjon. Beholdt eksisterende moduldeling.
+- Forenklet lokal oppstart til Docker Compose og forklart datahentingen i README.
+  Oppdatert arkitektur og motstridende beskrivelser av internettoppsett/utstedelse.
+- Rå kildefeil lagres ikke lenger i kontrollresultater eller vises til operatøren.
+  Regresjonstesten dekker både Brreg- og identitetsfeil med sensitive request-detaljer.
+- Node 24.17.0 / pnpm 11.8.0: `pnpm check` bestått med 63 tester, samt formatering
+  og separat typekontroll av fixture. Audit av app og fixture uten kjente sårbarheter.
+- Nybygd lokal app: ekte PDS-integrasjon, worker-integrasjon og nettverksisolasjon bestått.
+- Gitleaks 8.30.1: ingen funn i versjonerte filer eller de 43 committene i alle
+  hentede Git-refs før denne endringen. Separat skanning av GitHub issue-/PR-tekster,
+  issue-/review-kommentarer og release-metadata ga heller ingen funn.
+- Dette er en kode- og lokal testgjennomgang. Produksjonsutrulling og endring av
+  repository-synlighet inngår ikke i kontrollene.

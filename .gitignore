@@ -8,3 +8,13 @@ data/
 *.tsbuildinfo
 
 fixture/dist/
+
+# Local credentials and database backups, even outside the runtime directories.
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*

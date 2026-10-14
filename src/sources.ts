@@ -66,14 +66,15 @@ export async function liveCheck(
       ...decide(organisation, candidate, identity),
       checkedAt: new Date().toISOString(),
     };
-  } catch (error) {
+  } catch {
+    // SDK/network errors can contain request details. Do not persist or display them.
     return {
       mode: 'live',
       policyVersion,
       organisation,
       candidate,
       decision: 'unavailable',
-      reason: error instanceof Error ? error.message : 'Oppslaget feilet.',
+      reason: 'Register- eller identitetsoppslaget feilet. Prøv igjen senere.',
       checkedAt: new Date().toISOString(),
     };
   }
