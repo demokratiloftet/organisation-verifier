@@ -1,5 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { automationConfig } from '../src/config.js';
 import { privateRemote, publicRemote, Publisher, type RecordRemote } from '../src/publisher.js';
 import { Store } from '../src/store.js';
@@ -114,7 +117,8 @@ for (const privateMode of [false, true])
       did,
       identifier: 'issuer.example.org',
       password: 'synthetic-test-value',
-      orgnrs: ['922669708'],
+      scope: privateMode ? ('pilot' as const) : ('all_matching' as const),
+      orgnrs: privateMode ? ['922669708'] : [],
     };
     const token = [
       Buffer.from('{}').toString('base64url'),
@@ -186,4 +190,39 @@ test('worker concurrency is bounded and rejects malformed configuration', async 
   assert.equal((await automationConfig({ WORKER_CONCURRENCY: '8' })).concurrency, 8);
   for (const value of ['', '0', '9', '-1', '2.5', 'Infinity', '4workers'])
     await assert.rejects(automationConfig({ WORKER_CONCURRENCY: value }), /WORKER_CONCURRENCY/);
+});
+
+test('all_matching is explicit, supports an empty pilot list and never broadens private issuance', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'issuer-scope-'));
+  try {
+    const password = join(dir, 'password');
+    await writeFile(password, 'synthetic-test-value', { mode: 0o600 });
+    const env = {
+      AUTOMATION_ENABLED: 'true',
+      PUBLIC_ISSUANCE_ENABLED: 'true',
+      ISSUER_PDS: 'https://issuer.example.org',
+      ISSUER_DID: 'did:plc:test',
+      ISSUER_IDENTIFIER: 'issuer.example.org',
+      ISSUER_PASSWORD_FILE: password,
+      PILOT_ORGNRS: '',
+    };
+    await assert.rejects(automationConfig(env), /PILOT_ORGNRS/);
+    const config = await automationConfig({ ...env, ISSUANCE_SCOPE: 'all_matching' });
+    assert.equal(config.issuer?.scope, 'all_matching');
+    assert.deepEqual(config.issuer?.orgnrs, []);
+    assert.equal((await automationConfig({ ...env, PILOT_ORGNRS: '922669708' })).issuer?.scope, 'pilot');
+    for (const scope of ['all', '*', '', 'ALL_MATCHING'])
+      await assert.rejects(automationConfig({ ...env, ISSUANCE_SCOPE: scope }), /ISSUANCE_SCOPE/);
+    await assert.rejects(
+      automationConfig({
+        ...env,
+        ISSUANCE_SCOPE: 'all_matching',
+        PUBLIC_ISSUANCE_ENABLED: 'false',
+        PRIVATE_ISSUANCE_ENABLED: 'true',
+      }),
+      /pilot scope/,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

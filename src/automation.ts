@@ -18,6 +18,12 @@ export async function startAutomation(
   const remote = config.issuer
     ? await (config.issuer.private ? privateRemote : publicRemote)(config.issuer)
     : undefined;
+  // Recheck previously discovered accounts when expanding scope; never replay old positives as proof.
+  if (config.issuer?.scope === 'all_matching')
+    store.transaction(() => {
+      for (const row of store.db.prepare('SELECT orgnr FROM organisations WHERE did IS NOT NULL').all())
+        store.enqueue(String(row.orgnr), Date.now(), 1);
+    });
   if (config.issuer) for (const orgnr of config.issuer.orgnrs) store.enqueue(orgnr, Date.now(), 2);
   const stopStream = config.jetstream ? startJetstream(store, config.jetstream) : () => {};
   const controller = new AbortController();

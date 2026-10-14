@@ -1,6 +1,6 @@
 import { type Check, policyVersion, websiteHandle } from './domain.js';
 import { discoverHandle, resolveIdentity } from './identity.js';
-import { Publisher, type RecordRemote } from './publisher.js';
+import { allowsOrganisation, Publisher, type RecordRemote } from './publisher.js';
 import { fetchOrganisation, liveCheck } from './sources.js';
 import { Store } from './store.js';
 
@@ -114,17 +114,21 @@ export async function workOnce(
           .publications(remote.repo, job.key)
           .some((p) => p.state !== 'revoked' && (p.mode ?? 'fixture') === (remote.mode ?? 'fixture'))
       : false;
-    const inPilot = remote?.allowedOrgnrs?.has(job.key) ?? false;
-    if (existing && !inPilot)
+    const inScope = remote ? allowsOrganisation(remote, job.key) : false;
+    if (existing && !inScope)
       publicationCheck = {
         ...check,
         policyVersion,
         decision: 'no_match',
-        reason: 'Organisasjonen er tatt ut av pilotlisten.',
+        reason: 'Organisasjonen er utenfor konfigurert utstedelsesomfang.',
       };
     const canIssue = registryReady(store);
     // Withdrawals, including expiry, must still work during a register outage.
-    if (remote && (inPilot || existing) && (publicationCheck.decision !== 'match' || canIssue)) {
+    if (
+      remote &&
+      (existing || (inScope && publicationCheck.decision === 'match')) &&
+      (publicationCheck.decision !== 'match' || canIssue)
+    ) {
       const evidenceJob = {
         ...job,
         revision: Number(store.db.prepare('SELECT revision FROM jobs WHERE key=?').get(job.key)?.revision),
@@ -142,8 +146,8 @@ export async function workOnce(
         throw new Error('Publisering må forsøkes igjen; se recordens status.');
     }
     if (check.decision === 'unavailable') throw new Error(check.reason);
-    // Revisit a pilot quickly if catch-up or a stale registry feed prevented publication.
-    if (inPilot && publicationCheck.decision === 'match' && !canIssue)
+    // Revisit a matching organisation quickly if catch-up or a stale registry feed prevented publication.
+    if (inScope && publicationCheck.decision === 'match' && !canIssue)
       throw new Error('Venter på komplett og oppdatert register før publisering.');
     store.finish(job);
   } catch {
