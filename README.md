@@ -48,12 +48,15 @@ regnes da ikke som aktive.
 4. **PDS → kontostatus og profilnavn.** Les `com.atproto.sync.getRepoStatus` og
    `app.bsky.actor.profile` direkte fra PDS-en. Kontoen må være aktiv. Profilnavnet
    må samsvare med Brreg-navnet etter normalisering av Unicode, mellomrom og store/små bokstaver.
+   Ett avsluttende, separat `AS` i Brreg-navnet kan utelates i profilnavnet.
 5. **Lagre resultatet.** Kontrollen blir `match`, `no_match`, `needs_review` eller
    `unavailable`. En timeout eller kildefeil er aldri et positivt resultat.
 
 Nettsider med sti, egen port eller andre tvetydigheter godkjennes ikke automatisk.
 Bakgrunnskontrollen sjekker også om flere Brreg-enheter deler domenet, med eller
-uten `www`; slike treff krever vurdering. En manuell kontroll alene dekker ikke
+uten `www`. Delt domene tillates bare når profilnavnet matcher **nøyaktig én**
+organisasjon på domenet etter samme navneregel. Også enheter med sti i hjemmesiden
+telles med; to mulige treff krever vurdering. En manuell kontroll alene dekker ikke
 fullregisterets konfliktkontroll.
 
 ### Når automatikk er slått på
@@ -61,7 +64,8 @@ fullregisterets konfliktkontroll.
 Brregs daglige gzip-fil importeres én gang, strømmet til SQLite. Deretter hentes
 registerendringer, og relevante Jetstream-hendelser fra atproto legger nye
 kontroller i kø. Hendelsene er **bare varsler om å sjekke på nytt**, aldri bevis.
-Vanlig oppstart eller sidevisning laster ikke ned hele registeret igjen.
+Vanlig oppstart eller sidevisning laster ikke ned hele registeret igjen. Ved ny
+policyversjon kølegges eksisterende kandidater én gang for fersk kontroll.
 
 Lokalindeksen brukes til å finne kandidater. Positive treff sjekkes på nytt mot
 ferske Brreg- og identitetsdata før utstedelse. Kjente kontoer kontrolleres med

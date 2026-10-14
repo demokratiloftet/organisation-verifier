@@ -1,4 +1,4 @@
-import { type Check, policyVersion, websiteHandle } from './domain.js';
+import { type Check, policyVersion } from './domain.js';
 import { discoverHandle, resolveIdentity } from './identity.js';
 import { allowsOrganisation, Publisher, type RecordRemote } from './publisher.js';
 import { fetchOrganisation, liveCheck } from './sources.js';
@@ -26,18 +26,6 @@ export async function backgroundCheck(
   const cached = registryReady(store) ? store.organisation(orgnr) : undefined;
   const known = store.db.prepare('SELECT did FROM organisations WHERE orgnr=?').get(orgnr)?.did;
   if (!cached || fresh || known) return liveCheck(orgnr, organisationSource, identitySource);
-  const candidate = cached.website ? websiteHandle(cached.website) : undefined;
-  if (!cached.deleted && candidate && store.sharedHost(candidate))
-    return {
-      mode: 'live',
-      policyVersion,
-      registrySource: 'index',
-      organisation: cached,
-      candidate,
-      decision: 'needs_review',
-      reason: 'Flere organisasjoner har registrert dette domenet. Automatisk publisering holdes tilbake.',
-      checkedAt: new Date().toISOString(),
-    };
   const check = await liveCheck(orgnr, async () => cached, identitySource);
   return check.decision === 'match'
     ? liveCheck(orgnr, organisationSource, identitySource)
@@ -85,11 +73,12 @@ export async function workOnce(
     if (check.decision === 'unavailable' && previous) check = { ...check, organisation: previous };
     store.transaction(() => {
       store.upsertOrganisation(check.organisation);
-      if (check.decision === 'match' && check.candidate && store.sharedHost(check.candidate))
+      if (check.decision === 'match' && !uniqueOrganisation(store, check))
         check = {
           ...check,
           decision: 'needs_review',
-          reason: 'Flere organisasjoner har registrert dette domenet. Automatisk publisering holdes tilbake.',
+          reason:
+            'Profilnavnet matcher ikke entydig én organisasjon på domenet. Automatisk publisering holdes tilbake.',
         };
       store.checked(check, Date.now() + (check.decision === 'match' ? recheckInterval : 7 * recheckInterval));
     });
@@ -137,10 +126,7 @@ export async function workOnce(
         store,
         remote,
         () =>
-          store.current(evidenceJob) &&
-          registryReady(store) &&
-          !!publicationCheck.candidate &&
-          !store.sharedHost(publicationCheck.candidate),
+          store.current(evidenceJob) && registryReady(store) && uniqueOrganisation(store, publicationCheck),
       ).apply(publicationCheck);
       if (store.publications(remote.repo, job.key).some((p) => p.state !== 'revoked' && p.error))
         throw new Error('Publisering må forsøkes igjen; se recordens status.');
@@ -167,4 +153,12 @@ export async function workOnce(
     );
   }
   return true;
+}
+
+function uniqueOrganisation(store: Store, check: Check): boolean {
+  return (
+    !!check.candidate &&
+    !!check.identity &&
+    store.uniqueNameMatch(check.candidate, check.identity.displayName, check.organisation.orgnr)
+  );
 }

@@ -135,7 +135,8 @@ test('streamed snapshot imports idempotently, catches shared/path domains, and a
       ),
     );
     assert.equal(await importSnapshot(store, file, '2026-10-01T00:00:00Z'), 2);
-    assert.equal(store.sharedHost('devotta.no'), true);
+    assert.equal(store.uniqueNameMatch('devotta.no', org.name, org.orgnr), true);
+    assert.equal(store.uniqueNameMatch('devotta.no', 'Other', '123456789'), true);
     assert.equal(store.get('import.phase'), 'catchup');
     assert.equal(await importSnapshot(store, file, '2026-10-01T00:00:00Z'), 2);
     assert.equal(store.status().organisations, 2);
@@ -389,7 +390,7 @@ test('registry catch-up fetches entries before committing jobs and cursor; a fai
       async (id) => ({ ...org, orgnr: id }),
     );
     assert.equal(store.get('registry.cursor'), '6');
-    assert.equal(store.sharedHost('devotta.no'), true);
+    assert.equal(store.uniqueNameMatch('devotta.no', org.name, org.orgnr), false);
     assert.equal(store.get('import.phase'), 'catchup');
     await pollRegistry(
       store,
@@ -465,7 +466,7 @@ test('pre-upgrade backup does not migrate the source database', async () => {
   }
 });
 
-test('shared-domain changes recheck unique/shared transitions without fanning out across every tenant', () => {
+test('shared-domain changes recheck eligible accounts without fanning out across path-only tenants', () => {
   const store = new Store(':memory:');
   try {
     for (let i = 0; i < 100; i++)
@@ -497,15 +498,15 @@ test('www and bare hosts share conflict checks and event/recheck scheduling, inc
     assert.deepEqual(store.affected('did:plc:unknown', 'devotta.no'), [org.orgnr]);
     // A path-based tenant still counts as conflicting registered use of the bare domain.
     store.upsertOrganisation({ ...org, orgnr: '123456789', website: 'devotta.no/team' });
-    assert.equal(store.sharedHost('devotta.no'), true);
-    assert.equal(store.sharedHost('www.devotta.no'), true);
+    assert.equal(store.uniqueNameMatch('devotta.no', org.name, org.orgnr), false);
+    assert.equal(store.uniqueNameMatch('www.devotta.no', org.name, org.orgnr), false);
     assert(store.db.prepare('SELECT 1 FROM jobs WHERE key=?').get(org.orgnr));
     store.db.prepare('DELETE FROM jobs WHERE key<>?').run(org.orgnr);
     await workOnce(store, wire.client, async () => check);
     assert.equal(wire.records.size, 0);
     assert.equal(store.checks()[0]!.decision, 'needs_review');
     store.upsertOrganisation({ ...org, orgnr: '123456789', deleted: true });
-    assert.equal(store.sharedHost('devotta.no'), false);
+    assert.equal(store.uniqueNameMatch('devotta.no', org.name, org.orgnr), true);
     assert(store.db.prepare('SELECT 1 FROM jobs WHERE key=?').get(org.orgnr));
   } finally {
     store.close();

@@ -5,6 +5,7 @@ import { privateRemote, publicRemote } from './publisher.js';
 import { pollRegistry } from './registry.js';
 import { Store } from './store.js';
 import { workOnce } from './worker.js';
+import { policyVersion } from './domain.js';
 
 export async function startAutomation(
   store: Store,
@@ -18,6 +19,20 @@ export async function startAutomation(
   const remote = config.issuer
     ? await (config.issuer.private ? privateRemote : publicRemote)(config.issuer)
     : undefined;
+  // A policy change can admit previously rejected candidates with no known DID.
+  // Queue fresh checks once; never publish old results or redownload the registry.
+  if (store.get('worker.policyVersion') !== policyVersion)
+    store.transaction(() => {
+      store.db
+        .prepare(
+          `INSERT INTO jobs(key,due,priority)
+        SELECT orgnr,?,CASE WHEN did IS NULL THEN 0 ELSE 1 END FROM organisations
+        WHERE host IS NOT NULL OR did IS NOT NULL
+        ON CONFLICT(key) DO UPDATE SET due=MIN(jobs.due,excluded.due),revision=jobs.revision+1`,
+        )
+        .run(Date.now());
+      store.set('worker.policyVersion', policyVersion);
+    });
   // Recheck previously discovered accounts when expanding scope; never replay old positives as proof.
   if (config.issuer?.scope === 'all_matching')
     store.transaction(() => {

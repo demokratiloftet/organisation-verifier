@@ -130,3 +130,19 @@ ble slettet med containeren; produksjonsdatabasen ble ikke brukt som testdatabas
   issue-/review-kommentarer og release-metadata ga heller ingen funn.
 - Dette er en kode- og lokal testgjennomgang. Produksjonsutrulling og endring av
   repository-synlighet inngår ikke i kontrollene.
+
+## Navnepolicy name-unique-v4 — 14. oktober 2026
+
+- 71 tester bestått med Node 24.17.0 og pnpm 11.8.0, inkludert MDG, Aftenposten og
+  Morgenbladet, avgrensning av AS-unntaket, tvetydige navn, path-baserte enheter,
+  navneendring på delt domene, tilbaketrekking, endringer under oppslag/publisering
+  og engangs kølegging ved policyoppgradering.
+- Typekontroll, bygg, Prettier og begge avhengighetsauditer bestått. Nybygget app
+  bestod ekte isolert PDS-integrasjon, worker med databasegjenåpning og nettverksisolasjon.
+- Skrivebeskyttet forhåndskontroll kl. 21.13 UTC: 16 registerrader fra produksjon
+  for mdg.no, aftenposten.no og morgenbladet.no ble kopiert til en lokal minnedatabase.
+  Registeret var komplett og nylig avstemt. Den nye worker-koden hentet ferske
+  Brreg-/identitetsdata og ga `match` for 971377461, 890412882 og 866948542,
+  inkludert entydig navn blant domenets organisasjoner. Ingen publisering ble gjort.
+- Produksjonsutrulling må skje etter PR-godkjenning og grønn CI. Forhåndskontrollen
+  ovenfor dokumenterer ny policy, ikke at den allerede kjører på VPS-en.

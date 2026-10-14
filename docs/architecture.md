@@ -66,9 +66,16 @@ Se [automatikk](automation.md) for kommandoer, intervaller og gjenoppretting.
 - Sti, query, fragment, brukerinformasjon eller egen port gir vurderingsbehov.
 - Første gyldige `at://`-alias i DID-dokumentet må være handle-kandidaten.
 - Kontoen må være aktiv, og profilnavnet må samsvare etter Unicode-, mellomrom-
-  og bokstavnormalisering. Andre navneunntak finnes ikke.
-- Bakgrunnsarbeideren holder tilbake delte domener, også når en annen enhets
-  registrerte hjemmeside har en sti. Manuelle oppslag har ikke denne fullregisterkontrollen.
+  og bokstavnormalisering. Ett avsluttende, separat `AS` i Brreg-navnet kan
+  utelates i profilnavnet. `ASA`, `A/S`, prefikser og merkenavn får ingen unntak.
+- Bakgrunnsarbeideren krever at profilnavnet matcher nøyaktig én organisasjon på
+  domenet, gruppert med og uten `www`. Enheter med sti telles med. To navnetreff,
+  også etter AS-unntaket, gir vurderingsbehov; eksakt navn får ikke forrang.
+  Manuelle oppslag har ikke denne fullregisterkontrollen.
+- Unikheten kontrolleres igjen rett før en ny record skrives. Navne- og
+  domeneendringer kølegger berørte kontoer på nytt, også når domenet allerede deles
+  av mange enheter. Path-baserte enheter uten kjent konto trenger ikke ny
+  identitetskontroll selv, men teller fortsatt når unikheten vurderes.
 - Usikre kilder gir `unavailable`, aldri godkjenning. Eksisterende verifikasjon
   beholdes ved kortvarig feil, men trekkes tilbake etter syv dager uten fullført kontroll.
 

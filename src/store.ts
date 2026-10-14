@@ -5,6 +5,7 @@ import {
   registryHost,
   websiteHandle,
   hostVariants,
+  matchesName,
   type Check,
   type SavedCheck,
   type Organisation,
@@ -51,6 +52,9 @@ export class Store {
   private claims = 0;
   constructor(path: string) {
     this.db = new DatabaseSync(path);
+    this.db.function('matches_name', { deterministic: true }, (registered, profile) =>
+      matchesName(String(registered ?? ''), String(profile ?? '')) ? 1 : 0,
+    );
     this.db.function('casefold', { deterministic: true }, (value) =>
       String(value ?? '')
         .normalize('NFKC')
@@ -129,26 +133,34 @@ export class Store {
       : organisation.website
         ? (registryHost(organisation.website) ?? null)
         : null;
-    const previous = this.db.prepare('SELECT host FROM organisations WHERE orgnr=?').get(organisation.orgnr);
+    const previous = this.db
+      .prepare('SELECT host,data FROM organisations WHERE orgnr=?')
+      .get(organisation.orgnr);
+    const previousName = previous ? (JSON.parse(String(previous.data)) as Organisation).name : undefined;
     this.db
       .prepare(
         `INSERT INTO organisations(orgnr,host,data,seen) VALUES (?,?,?,?)
       ON CONFLICT(orgnr) DO UPDATE SET host=excluded.host,data=excluded.data,seen=COALESCE(excluded.seen,organisations.seen)`,
       )
       .run(organisation.orgnr, host, JSON.stringify(organisation), seen ?? null);
-    if (previous?.host !== host) {
+    if (previous?.host !== host || previousName !== organisation.name) {
       const priority = seen ? 0 : 1;
       if (host) this.enqueue(organisation.orgnr, Date.now(), priority);
-      // Only crossing the unique/shared boundary changes other organisations' decisions.
-      // Do not fan out to thousands of tenants each time another shared website is imported.
-      for (const affectedHost of [previous?.host, host]) {
+      // A renamed/added/removed peer can make a previously unique name ambiguous.
+      // Import already queues every website while workers are paused; avoid quadratic fan-out.
+      if (seen) return;
+      for (const affectedHost of new Set([previous?.host, host])) {
         if (!affectedHost) continue;
         const variants = hostVariants(String(affectedHost));
         const members = this.db
-          .prepare('SELECT orgnr FROM organisations WHERE host IN (?,?) LIMIT 3')
+          .prepare('SELECT orgnr,data,did FROM organisations WHERE host IN (?,?)')
           .all(variants[0]!, variants[1] ?? null);
-        if (members.length <= 2)
-          for (const member of members) this.enqueue(String(member.orgnr), Date.now(), priority);
+        for (const member of members) {
+          const peer = JSON.parse(String(member.data)) as Organisation;
+          // Path-only tenants count in uniqueness, but cannot themselves be newly issued.
+          if (member.did || (peer.website && websiteHandle(peer.website)))
+            this.enqueue(String(member.orgnr), Date.now(), priority);
+        }
       }
     }
   }
@@ -159,13 +171,17 @@ export class Store {
       .all(did, variants[0] ?? null, variants[1] ?? null)
       .map((row) => String(row.orgnr));
   }
-  sharedHost(host: string): boolean {
+  uniqueNameMatch(host: string, profileName: string, orgnr: string): boolean {
     const variants = hostVariants(host);
-    return (
-      this.db
-        .prepare('SELECT orgnr FROM organisations WHERE host IN (?,?) LIMIT 2')
-        .all(variants[0]!, variants[1] ?? null).length > 1
-    );
+    // Include path-based websites and AS-equivalent names, not just eligible issuers.
+    // The host index bounds this lookup; stop as soon as a second match is found.
+    const matches = this.db
+      .prepare(
+        `SELECT orgnr FROM organisations WHERE host IN (?,?)
+        AND matches_name(json_extract(data,'$.name'),?) LIMIT 2`,
+      )
+      .all(variants[0]!, variants[1] ?? null, profileName);
+    return matches.length === 1 && matches[0]!.orgnr === orgnr;
   }
   enqueue(orgnr: string, due = Date.now(), priority = 1): void {
     this.db
