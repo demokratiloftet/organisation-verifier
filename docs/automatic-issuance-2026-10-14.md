@@ -109,3 +109,15 @@ operatørinnlogging. Søk på navn, org.nr. og handle skjer mot publikasjonene, 
 25 rader per side. Den avhenger ikke av de 100 siste kontrollene eller
 publiseringshendelsene og skanner ikke fullregisteret. Siden oppdaterer listen
 hvert tiende sekund når fanen er synlig; lesing utløser ingen kontroll eller publisering.
+
+«Se kontokobling» henter et ferskt, skrivebeskyttet oppslag ved åpning. Visningen
+viser domene → DID, DID → domene, kontoserver (PDS), faktisk DNS TXT-innhold eller
+well-known-metode, samt lenker til DID-dokument og `describeRepo` hos leverandøren.
+Bluesky er en separat, valgfri appvisning. En PDS trenger ikke ha en offentlig
+profilside. Oppslaget endrer ingen verifikasjon og er ikke en ny Brreg-kontroll.
+
+Oppslaget bruker `/api/state?view=identity&orgnr=…` bak operatørinnlogging, bare
+for aktive publikasjoner fra gjeldende offentlige utsteder. Ingen vilkårlige URL-er
+eller domener godtas som input. Samme beskyttede resolver som verifikatoren brukes;
+nytt eller avvikende bevis vises som avvik, og nettverksfeil gir ingen ny bekreftelse.
+Oppslaget kjøres ikke for hele listen eller ved periodisk sideoppdatering.

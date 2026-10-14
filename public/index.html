@@ -28,8 +28,8 @@
           kontoidentitet og navnesamsvar.
         </p>
         <p class="reason">
-          «Vis i Bluesky» åpner kontoen i Bluesky-appen. Kontoen kan være lagret hos en annen leverandør, som
-          Eurosky. En konto kan finnes selv om den ikke har innlegg.
+          «Se kontokobling» viser hvor kontoen er lagret og hvordan domenet peker til konto-ID-en. Bluesky er
+          en valgfri appvisning av kontoen.
         </p>
         <form id="verified-search" role="search">
           <label for="verified-query">Finn en organisasjon</label>
@@ -78,6 +78,15 @@
           ikke. «Se record» åpner den offentlige bekreftelsen som JSON.
         </p>
       </section>
+      <dialog id="account-dialog" aria-labelledby="account-title">
+        <div class="section-heading">
+          <h2 id="account-title">Kontokobling</h2>
+          <form method="dialog"><button class="primary" aria-label="Lukk kontokobling">Lukk</button></form>
+        </div>
+        <p id="account-state" class="reason" role="status" aria-live="polite"></p>
+        <div id="account-evidence"></div>
+        <button id="account-reload" class="primary" type="button">Hent på nytt</button>
+      </dialog>
       <nav class="tabs" aria-label="Datakilde">
         <button id="fixture-tab" class="tab active" aria-pressed="true">Prøv demo</button>
         <button id="live-tab" class="tab" aria-pressed="false">Søk i Brreg</button>
