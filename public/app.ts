@@ -1,5 +1,6 @@
 import type { Mode, Decision, SavedCheck } from '../src/domain.js';
-import type { Publication, VerifiedPage } from '../src/store.js';
+import type { AccountEvidence } from '../src/identity.js';
+import type { Publication, VerifiedPage, VerifiedOrganisation } from '../src/store.js';
 import type { FixtureState } from '../src/sources.js';
 interface State {
   checks: SavedCheck[];
@@ -152,6 +153,86 @@ function render() {
   });
   $('#history').replaceChildren(...rows);
 }
+let evidenceAccount: VerifiedOrganisation | undefined;
+let evidenceRequest = 0;
+const accountDialog = element('#account-dialog', HTMLDialogElement);
+function evidenceLink(label: string, url: string) {
+  const link = document.createElement('a');
+  link.textContent = label;
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  return link;
+}
+async function showAccountEvidence() {
+  if (!evidenceAccount) return;
+  const item = evidenceAccount;
+  const request = ++evidenceRequest;
+  text('#account-title', item.name);
+  text('#account-state', 'Henter domenekobling og kontoserver …');
+  $('#account-evidence').replaceChildren();
+  element('#account-reload', HTMLButtonElement).disabled = true;
+  if (!accountDialog.open) accountDialog.showModal();
+  try {
+    const params = new URLSearchParams({ view: 'identity', orgnr: item.orgnr });
+    const response = await fetch(`/api/state?${params}`);
+    if (!response.ok) throw new Error('Oppslaget kunne ikke fullføres. Prøv igjen.');
+    const data = (await response.json()) as AccountEvidence;
+    if (request !== evidenceRequest || !accountDialog.open) return;
+    text(
+      '#account-state',
+      data.matches
+        ? 'Domenet og konto-ID-en peker på hverandre nå.'
+        : 'Domenekoblingen samsvarer ikke nå. Dette er nyere opplysninger enn den publiserte verifikasjonen.',
+    );
+    const nodes: HTMLElement[] = [
+      field('DOMENE → KONTO-ID', data.resolvedDid ?? 'Ingen DID funnet', true),
+      field('KONTO-ID I VERIFIKASJONEN', data.did, true),
+      field('KONTO → DOMENE', data.claimedHandle ?? 'Ingen handle i DID-dokumentet'),
+      field('KONTOSERVER (PDS)', data.pds),
+    ];
+    const explanation = document.createElement('p');
+    explanation.textContent =
+      'Kontoserveren lagrer kontoens data. Den trenger ikke ha en offentlig profilside. Lenken nedenfor viser kontodata direkte hos leverandøren.';
+    nodes.push(explanation, evidenceLink('Se kontodata hos leverandøren (JSON) ↗', data.repositoryUrl));
+    if (data.documentUrl) nodes.push(evidenceLink('Se identitetsdokumentet (JSON) ↗', data.documentUrl));
+    const domainTitle = document.createElement('h3');
+    domainTitle.textContent = 'Domenekoblingen';
+    nodes.push(domainTitle);
+    const method = document.createElement('p');
+    method.textContent =
+      data.method === 'dns'
+        ? `Funnet i DNS TXT på ${data.dnsName}:`
+        : data.method === 'https'
+          ? 'Funnet i domenets well-known-fil (HTTPS). DNS TXT er ikke nødvendig når denne metoden brukes.'
+          : 'Ingen domenekobling ble funnet via DNS eller HTTPS.';
+    nodes.push(method);
+    if (data.method === 'dns') {
+      const raw = document.createElement('pre');
+      raw.textContent = data.dnsRecords.join('\n');
+      nodes.push(raw);
+    }
+    if (data.method === 'https')
+      nodes.push(evidenceLink('Åpne domenets well-known-fil ↗', data.wellKnownUrl));
+    const timestamp = document.createElement('p');
+    timestamp.className = 'muted';
+    timestamp.textContent = `Hentet ${new Date(data.checkedAt).toLocaleString('nb-NO')}. Oppslaget viser kontokoblingen og endrer ikke verifikasjonen.`;
+    nodes.push(timestamp);
+    $('#account-evidence').replaceChildren(...nodes);
+  } catch {
+    if (request === evidenceRequest && accountDialog.open)
+      text(
+        '#account-state',
+        'Oppslaget kunne ikke fullføres. Ingen fersk bekreftelse er tilgjengelig. Prøv igjen.',
+      );
+  } finally {
+    if (request === evidenceRequest) element('#account-reload', HTMLButtonElement).disabled = false;
+  }
+}
+accountDialog.addEventListener('close', () => {
+  evidenceRequest++;
+});
+$('#account-reload').addEventListener('click', () => void showAccountEvidence());
 let verifiedPage = 1;
 let verifiedQuery = '';
 let verifiedRequest = 0;
@@ -199,14 +280,16 @@ async function refreshVerified() {
         profile.setAttribute('aria-label', `Vis ${item.name} i Bluesky`);
         profile.target = '_blank';
         profile.rel = 'noopener noreferrer';
-        const identity = document.createElement('details');
-        const summary = document.createElement('summary');
-        summary.textContent = 'Konto-ID (DID)';
-        const did = document.createElement('span');
-        did.className = 'mono';
-        did.textContent = item.did;
-        identity.append(summary, did);
-        account.append(handle, profile, identity);
+        const identity = document.createElement('button');
+        identity.type = 'button';
+        identity.className = 'account-evidence-button';
+        identity.textContent = 'Se kontokobling';
+        identity.setAttribute('aria-label', `Se domene og kontoserver for ${item.name}`);
+        identity.addEventListener('click', () => {
+          evidenceAccount = item;
+          void showAccountEvidence();
+        });
+        account.append(handle, identity, profile);
         const confirmed = document.createElement('td');
         const date = document.createElement('time');
         date.dateTime = item.confirmedAt;

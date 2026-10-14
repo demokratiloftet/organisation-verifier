@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import Fastify from 'fastify';
 import type { Scenario } from './domain.js';
+import { inspectAccount } from './identity.js';
 import { FixtureSource, liveCheck } from './sources.js';
 import { fixtureRemote, Publisher } from './publisher.js';
 import { Store } from './store.js';
@@ -120,7 +121,7 @@ export async function createApp(options: AppOptions) {
     issuanceScope: options.automation?.issuer ? (options.automation.issuer.scope ?? 'pilot') : null,
     ...store.status(),
   }));
-  app.get<{ Querystring: { view?: 'verified'; q?: string; page?: number } }>(
+  app.get<{ Querystring: { view?: 'verified' | 'identity'; q?: string; page?: number; orgnr?: string } }>(
     '/api/state',
     {
       schema: {
@@ -128,14 +129,30 @@ export async function createApp(options: AppOptions) {
           type: 'object',
           additionalProperties: false,
           properties: {
-            view: { enum: ['verified'] },
+            view: { enum: ['verified', 'identity'] },
+            orgnr: { type: 'string', pattern: '^\\d{9}$' },
             q: { type: 'string', maxLength: 100 },
             page: { type: 'integer', minimum: 1, maximum: 100000 },
           },
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
+      if (request.query.view === 'identity') {
+        if (!request.query.orgnr) return reply.code(400).send({ error: 'Organisasjonsnummer mangler.' });
+        const issuer = options.automation?.issuer;
+        const publication =
+          issuer && !issuer.private
+            ? store
+                .publications(issuer.did, request.query.orgnr)
+                .find((p) => p.mode === 'live' && p.state === 'published' && !p.error)
+            : undefined;
+        if (!publication)
+          return reply
+            .code(404)
+            .send({ error: 'Ingen aktiv offentlig verifikasjon for denne organisasjonen.' });
+        return exclusive(() => inspectAccount(publication.record.handle, publication.record.subject));
+      }
       if (request.query.view === 'verified') {
         const issuer = options.automation?.issuer;
         const repo = issuer && !issuer.private ? issuer.did : '';
