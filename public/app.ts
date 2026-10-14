@@ -190,12 +190,23 @@ async function refreshVerified() {
         orgnr.textContent = `Org.nr. ${item.orgnr}`;
         name.append(title, orgnr);
         const account = document.createElement('td');
+        const handle = document.createElement('strong');
+        handle.textContent = `@${item.handle}`;
         const profile = document.createElement('a');
-        profile.textContent = `@${item.handle}`;
-        profile.href = `https://bsky.app/profile/${encodeURIComponent(item.did)}`;
+        profile.textContent = 'Vis i Bluesky ↗';
+        // Bluesky's profile route expects literal DID separators, not %3A.
+        profile.href = `https://bsky.app/profile/${encodeURIComponent(item.did).replaceAll('%3A', ':')}`;
+        profile.setAttribute('aria-label', `Vis ${item.name} i Bluesky`);
         profile.target = '_blank';
         profile.rel = 'noopener noreferrer';
-        account.append(profile);
+        const identity = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = 'Konto-ID (DID)';
+        const did = document.createElement('span');
+        did.className = 'mono';
+        did.textContent = item.did;
+        identity.append(summary, did);
+        account.append(handle, profile, identity);
         const confirmed = document.createElement('td');
         const date = document.createElement('time');
         date.dateTime = item.confirmedAt;

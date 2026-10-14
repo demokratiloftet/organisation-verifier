@@ -481,3 +481,18 @@ a:focus-visible {
     display: block;
   }
 }
+
+.verified-table td:nth-child(2) > a {
+  display: inline-block;
+  margin-top: 7px;
+  font-size: 12px;
+}
+.verified-table details summary {
+  padding: 8px 0;
+  font-size: 11px;
+}
+.verified-table details span {
+  display: block;
+  overflow-wrap: anywhere;
+  max-width: 200px;
+}
