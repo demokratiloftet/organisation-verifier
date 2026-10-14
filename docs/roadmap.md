@@ -5,8 +5,9 @@ krever en full registergjennomgang og faktisk offentlig publisering. Kode og en
 positiv manuell kontroll er ikke alene nok til å lukke oppgaven.
 
 Fullimport er kjørt på VPS-en (1 177 860 enheter i snapshotet). Registerendringer
-og kontroller behandles fortløpende. Offentlig utstedelse utvides fra Devotta til alle organisasjoner som består
-kontrollene, med eksplisitt `all_matching`-omfang. Automatikken er merget i PR #6.
+og kontroller behandles fortløpende. Offentlig utstedelse er aktiv for alle organisasjoner som består
+kontrollene, med eksplisitt `all_matching`-omfang. 22 records er publisert og lest
+utenfra; se [gjennomgang og akseptanse](automatic-issuance-2026-10-14.md). Automatikken er merget i PR #6.
 Utstederkontoen ligger nå hos Eurosky; operatørsiden kjører på Demokratiloftet-domenet. Se
 [oppsett og gjennomført akseptanse](public-issuer.md).
 

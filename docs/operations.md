@@ -22,6 +22,12 @@ docker compose up -d --build --no-deps app
 
 ## VPS
 
+**14. oktober 2026:** Verifikatoren publiserer fra Eurosky med `ISSUANCE_SCOPE=all_matching`.
+Gjeldende image og omfang finnes i `/var/lib/loftet-deploy/organisation-verifier/current.json`.
+GitHub-autodeploy (`DEMO_DEPLOY_ENABLED`) er fortsatt avslått etter den kontrollerte
+utrullingen. Ikke bygg den eldre checkouten i `/root/organisation-verifier`.
+Se [akseptanse og rollback](automatic-issuance-2026-10-14.md).
+
 **Oppdatert 12. oktober 2026:** Den nyeste demoen har autentisert HTTPS på
 [verifikasjon.dev.demokratiloftet.no:8443](https://verifikasjon.dev.demokratiloftet.no:8443/).
 Se [gjeldende internettoppsett](internet.md). SSH-tunnelen nedenfor beskriver den

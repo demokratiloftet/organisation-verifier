@@ -9,7 +9,8 @@ fra den dedikerte Eurosky-kontoen. Operatørsiden er fortsatt
 - PDS: `https://eurosky.social`
 - Collection: `app.bsky.graph.verification`
 - Utstedelsesomfang: `all_matching` åpner for alle organisasjoner som består kontrollene.
-  Pilotmodus med eksplisitt liste beholdes som et alternativ. Se akseptanseloggen nedenfor.
+  Pilotmodus med eksplisitt liste beholdes som et alternativ. Produksjon bruker dette omfanget og har 22 aktive records etter utvidelsen.
+  Se [gjennomgang og akseptanse](automatic-issuance-2026-10-14.md).
 
 DNS TXT på `_atproto.er-verifier.demokratiloftet.no` peker til denne DID-en.
 DID-dokumentet peker tilbake til handle og Eurosky. Utstederkontoen trenger ikke
@@ -58,7 +59,7 @@ Kontrollhistorikk og den gamle kontoen beholdes. Se
 
 ## Drift og hemmeligheter
 
-Eksisterende applikasjonsbilde og kontrollregler er beholdt. Bare utstederens PDS,
+Ved kontoovergangen ble applikasjonsbilde og kontrollregler beholdt. Bare utstederens PDS,
 DID, identifier og passordfil ble endret ved kontoovergangen. Da var pilotlisten kun Devotta.
 Den etterfølgende utvidelsen bruker `ISSUANCE_SCOPE=all_matching`.
 Brreg-importen ble ikke kjørt på nytt. Worker- og endringsbehandling fortsetter.
