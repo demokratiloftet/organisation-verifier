@@ -44,7 +44,7 @@ test('matching names alone cannot verify another domain; deletion and ambiguity 
   };
   assert.equal(decide(org, org.website, identity).decision, 'match');
   assert.equal(decide(org, org.website, { ...identity, handle: 'attacker.test' }).decision, 'no_match');
-  assert.equal(decide(org, org.website, { ...identity, displayName: 'Fjordverk' }).decision, 'needs_review');
+  assert.equal(decide(org, org.website, { ...identity, displayName: 'Fjordverk' }).decision, 'match');
   assert.equal(decide({ ...org, deleted: true }, org.website, identity).decision, 'no_match');
   assert.equal(decide(org, undefined, identity).decision, 'needs_review');
   assert.equal(decide(org, org.website).decision, 'no_match');

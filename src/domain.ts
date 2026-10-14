@@ -4,7 +4,7 @@ import { getDomain } from 'tldts';
 export type Mode = 'fixture' | 'live';
 export type Decision = 'match' | 'no_match' | 'needs_review' | 'unavailable';
 export type Scenario = 'valid' | 'name_changed' | 'website_changed' | 'no_account' | 'unavailable';
-export const policyVersion = 'www-psl-v3';
+export const policyVersion = 'name-unique-v4';
 export interface Organisation {
   orgnr: string;
   name: string;
@@ -94,6 +94,17 @@ export function claimedHandle(aliases: string[] = []): string | undefined {
 const normalizeName = (value: string) =>
   value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('nb-NO');
 
+// The profile may omit one trailing, separate AS from the registered name.
+// This is not fuzzy matching: ASA, A/S, prefixes and brand names stay distinct.
+export function matchesName(registeredName: string, profileName: string): boolean {
+  const registered = normalizeName(registeredName);
+  const profile = normalizeName(profileName);
+  return (
+    !!profile &&
+    (profile === registered || (registered.endsWith(' as') && profile === registered.slice(0, -3)))
+  );
+}
+
 export function decide(
   organisation: Organisation,
   candidate: string | undefined,
@@ -116,7 +127,7 @@ export function decide(
     };
   if (identity.handle !== candidate)
     return { decision: 'no_match', reason: 'Handle og DID peker ikke tilbake på hverandre.' };
-  if (!identity.displayName || normalizeName(identity.displayName) !== normalizeName(organisation.name)) {
+  if (!matchesName(organisation.name, identity.displayName)) {
     return {
       decision: 'needs_review',
       reason: 'Profilnavnet avviker fra det registrerte navnet. Automatisk publisering holdes tilbake.',

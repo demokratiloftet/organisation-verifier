@@ -80,17 +80,26 @@ test('stale, incomplete, pilot and known-account checks bypass the registry cach
   }
 });
 
-test('ambiguous shared hosts stop before identity network access and never create a match', async () => {
+test('shared hosts still fetch identity and fresh registry evidence; uniqueness is enforced by the worker', async () => {
   const store = new Store(':memory:');
   try {
     ready(store);
     store.upsertOrganisation({ ...org, orgnr: '123456789', website: 'www.devotta.no/tenant' });
-    const unexpected = async (): Promise<never> => {
-      throw new Error('Unexpected network access');
-    };
-    const check = await backgroundCheck(store, org.orgnr, false, unexpected, unexpected);
-    assert.equal(check.decision, 'needs_review');
-    assert.equal(check.registrySource, 'index');
+    let reads = 0;
+    const check = await backgroundCheck(
+      store,
+      org.orgnr,
+      false,
+      async () => {
+        reads++;
+        return org;
+      },
+      async () => identity,
+    );
+    assert.equal(reads, 1);
+    assert.equal(check.decision, 'match');
+    assert.equal(check.registrySource, undefined);
+    assert.equal(store.uniqueNameMatch('devotta.no', identity.displayName, org.orgnr), false);
   } finally {
     store.close();
   }

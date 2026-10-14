@@ -11,14 +11,20 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
 - Registrert host prøves først. Hvis ingen konto er toveis bekreftet der, kan én
   innledende `www.` fjernes og domenet kontrolleres på nytt. Nettverksfeil eller
   navneavvik gir ikke dette unntaket. Public Suffix List hindrer fallback til et offentlig eller privat suffix.
-  Andre foreldredomener og navneunntak støttes ikke.
+  Andre foreldredomener støttes ikke.
 - Profilnavnet må samsvare etter Unicode-, mellomrom- og bokstavnormalisering.
+  Ett avsluttende, separat `AS` i registernavnet kan utelates i profilnavnet.
+  Vi fjerner ikke `ASA`, `A/S`, prefikser eller ord inne i navnet. Profilens faktiske
+  navn beholdes i verifikasjonsrecorden.
 - HTTPS-oppslaget for en handle følger videresendinger, slik AT-protokollen tillater.
   Hvert hopp må fortsatt bruke HTTPS på standardport til en offentlig adresse, og
   hele kjeden har åtte sekunders tidsgrense. DID-dokumentet må bekrefte opprinnelig
   handle; en videresending endrer ikke hvilken identitet som kontrolleres.
-- Flere enheter med samme host, med eller uten `www`, gir manuell vurdering. Nettsteder med
-  en sti telles med ved konfliktkontroll, selv om de ikke selv kan verifiseres.
+- Flere enheter med samme host, med eller uten `www`, tillates bare når
+  profilnavnet matcher nøyaktig én av dem etter samme navneregel. Nettsteder med
+  sti telles med, selv om de ikke selv kan verifiseres. To mulige navnetreff gir
+  vurderingsbehov; et eksakt treff prioriteres ikke foran et treff uten `AS`.
+  Slettede enheter teller ikke. Unikheten kontrolleres også før selve publiseringen.
 - Positive kontroller gjentas daglig; andre kjente domener ukentlig. Register- og
   kontohendelser kølegger tidligere kontroll. Identitetshendelser uten handle og
   nye aktive kontoer får først et DID-oppslag for å finne relevante enheter.
@@ -38,9 +44,33 @@ beholder sine tidligere grenser. Offentlig publisering er avslått som standard.
   kontroll; gamle treff publiseres aldri direkte. Nyoppdagede treff utstedes fortløpende.
 - VPS-en har HTTPS og en felles operatørinnlogging. Flere tilgangsroller er ikke innført.
 
-Policyversjonen `www-psl-v3` lagres med nye kontroller. Ingen prøveidentiteter
+Policyversjonen `name-unique-v4` lagres med nye kontroller. Ingen prøveidentiteter
 kan passere den offentlige publisheren. En offentlig utstederkonto og en konto
 som skal verifiseres er to ulike roller.
+
+Ved overgang til `name-unique-v4` kølegges alle eksisterende enheter med domene
+eller kjent konto for fersk kontroll, én gang per policyversjon. Det inkluderer
+kandidater som tidligere ble stoppet før identitetsoppslag. Ingen ny fullimport
+eller databaseendring kreves. Vanlig frekvensgrense og alle utstedelseskrav gjelder.
+`worker.policyVersion` lagres atomisk med køleggingen. Nye navne-/domeneendringer
+fremskynder kontroll av berørte kontoer, også på domener med flere enn to enheter.
+
+Eksempler fra offentlige oppslag 14. oktober 2026, dekket av isolerte tester:
+
+| Organisasjon           | Profilnavn             | Ny vurdering                                                      |
+| ---------------------- | ---------------------- | ----------------------------------------------------------------- |
+| MILJØPARTIET DE GRØNNE | Miljøpartiet De Grønne | Navnet identifiserer hovedorganisasjonen blant enhetene på mdg.no |
+| AFTENPOSTEN AS         | Aftenposten            | Tillatt utelatelse av avsluttende AS                              |
+| MORGENBLADET AS        | Morgenbladet           | Tillatt utelatelse av avsluttende AS                              |
+
+Dette er ikke faste godkjenninger: hver utstedelse krever fortsatt ferske kilder,
+aktiv konto, toveis identitet og entydighet i det oppdaterte registeret.
+
+Ta SQLite-backup før utrulling og behold eksisterende utsteder-, HTTPS- og
+Compose-konfigurasjon. Automatisk deploy er avslått; endringen i `store.ts` krever
+kontrollert app-utrulling. Ved rollback til eldre policy kan de nylig tillatte
+verifikasjonene bli trukket tilbake ved neste kontroll. Behold nyere database og
+publiseringshistorikk; ikke gjenopprett gammel database for å rulle tilbake kode.
 
 **Devotta som kandidat:** Et faktisk oppslag 13. oktober 2026 bekreftet DEVOTTA AS,
 `922669708`, med registrert hjemmeside `www.devotta.no` og toveis koblet konto
@@ -107,7 +137,7 @@ indekseres, men trenger ingen innledende atproto-kontroll.
   førstegangskøen tilbake. Leases hindrer at to arbeidere behandler samme jobb.
 - Når registeret er komplett og nylig avstemt, brukes lokalindeksen til
   kandidatkontroll. Dette sparer ett Brreg-oppslag for hver negativ kandidat.
-  Delte domener holdes tilbake før nettverksoppslag. Positive kandidater kontrolleres
+  Også delte domener får identitetsoppslag, siden profilnavnet avgjør unikheten. Positive kandidater kontrolleres
   på nytt mot fersk Brreg-enhet og fersk identitet. Kjente kontoer, pilotjobber og
   eksisterende utstedelser får alltid ferske oppslag. Manuelle kontroller er uendret.
 - Brreg-endringer hentes i sider på 100, med høyst fire samtidige enhetsoppslag.

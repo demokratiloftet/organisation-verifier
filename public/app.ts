@@ -425,7 +425,7 @@ async function refreshDiagnostics() {
       if (latest?.decision === 'needs_review' && latest.identity)
         card.append(
           paragraph(
-            'Navneregelen er streng: profilnavnet må samsvare med Brreg-navnet. Store/små bokstaver og ekstra mellomrom ignoreres. Andre vurderingsbehov står i årsaken ovenfor.',
+            'Profilnavnet må samsvare med Brreg-navnet; store/små bokstaver og ekstra mellomrom ignoreres, og et avsluttende AS kan utelates. På delte domener må navnet matche nøyaktig én organisasjon. Årsaken ovenfor gjelder den lagrede kontrollens regelversjon.',
             'muted',
           ),
         );
