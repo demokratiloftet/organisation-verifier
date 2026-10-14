@@ -121,3 +121,11 @@ for aktive publikasjoner fra gjeldende offentlige utsteder. Ingen vilkårlige UR
 eller domener godtas som input. Samme beskyttede resolver som verifikatoren brukes;
 nytt eller avvikende bevis vises som avvik, og nettverksfeil gir ingen ny bekreftelse.
 Oppslaget kjøres ikke for hele listen eller ved periodisk sideoppdatering.
+
+## Operator diagnostics
+
+The protected `#diagnostics-panel` shows saved live checks by exact organisation number or registered domain (including the supported www alias). It compares the saved Brreg and profile names, shows the last 20 checks, queue/retry timing, and up to ten publication states for the current public issuer. An empty query shows a bounded sample of unresolved review/source-error cases, not a complete failure inventory. Normal no-account results remain searchable without flooding this overview.
+
+`/api/state?view=diagnostics&q=multiarc.no` uses the existing operator authentication and performs only indexed local reads. It does not enqueue, recheck, approve, publish, or relax policy. Fixture checks and other issuers' publication records are excluded. Additive SQLite indexes support organisation history and the bounded attention sample; history retains the existing 90-day limit. Matching evidence and successful publication are displayed separately.
+
+Validation: 62 tests pass, including read-only state invariants, auth, input validation, exact domain/org search, history bounds, fixture/issuer isolation, repeated failures and resolved-case removal. Desktop/mobile browser checks use a read-only copy of Multiarc's real saved checks. Production rollout must preserve strict policy and the existing issuance configuration.

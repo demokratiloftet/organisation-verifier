@@ -1,7 +1,14 @@
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import type { AppBskyGraphVerification } from '@atproto/api';
-import { registryHost, hostVariants, type Check, type SavedCheck, type Organisation } from './domain.js';
+import {
+  registryHost,
+  websiteHandle,
+  hostVariants,
+  type Check,
+  type SavedCheck,
+  type Organisation,
+} from './domain.js';
 
 export interface Job {
   key: string;
@@ -85,6 +92,11 @@ export class Store {
       WHERE host IS NOT NULL OR did IS NOT NULL;
       CREATE INDEX IF NOT EXISTS organisations_checked ON organisations(last_success)
       WHERE last_success IS NOT NULL`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS checks_organisation_mode ON checks(
+      json_extract(data,'$.organisation.orgnr'),json_extract(data,'$.mode'),id);
+      CREATE INDEX IF NOT EXISTS checks_attention ON checks(id)
+      WHERE json_extract(data,'$.mode')='live'
+      AND json_extract(data,'$.decision') IN ('needs_review','unavailable')`);
   }
   transaction<T>(action: () => T): T {
     this.db.exec('BEGIN IMMEDIATE');
@@ -295,6 +307,79 @@ export class Store {
         'INSERT INTO publications(rkey,data) VALUES (?,?) ON CONFLICT(rkey) DO UPDATE SET data=excluded.data',
       )
       .run(publication.rkey, JSON.stringify(publication));
+  }
+  organisationChecks(orgnr: string): SavedCheck[] {
+    return this.db
+      .prepare(
+        `SELECT id,data FROM checks
+      WHERE json_extract(data,'$.organisation.orgnr')=? AND json_extract(data,'$.mode')='live'
+      ORDER BY id DESC LIMIT 20`,
+      )
+      .all(orgnr)
+      .map((row) => ({ ...(JSON.parse(String(row.data)) as Check), id: Number(row.id) }));
+  }
+  diagnostics(query: string, repo: string) {
+    const orgnr = query.replaceAll(' ', '');
+    const host = websiteHandle(query.toLowerCase());
+    if (query && !/^\d{9}$/.test(orgnr) && !host)
+      throw Object.assign(new Error('Skriv et organisasjonsnummer eller et domene uten sti.'), {
+        statusCode: 400,
+      });
+    const variants = host ? hostVariants(host) : [];
+    const rows = !query
+      ? []
+      : /^\d{9}$/.test(orgnr)
+        ? this.db.prepare('SELECT orgnr,data,next_check FROM organisations WHERE orgnr=?').all(orgnr)
+        : this.db
+            .prepare(
+              'SELECT orgnr,data,next_check FROM organisations WHERE host IN (?,?) ORDER BY orgnr LIMIT 26',
+            )
+            .all(variants[0] ?? null, variants[1] ?? null);
+    const items = rows.slice(0, 25).map((row) => {
+      const key = String(row.orgnr);
+      const job = this.db.prepare('SELECT due,attempts,lease_until FROM jobs WHERE key=?').get(key);
+      return {
+        organisation: JSON.parse(String(row.data)) as Organisation,
+        checks: this.organisationChecks(key),
+        nextCheck: Number(row.next_check),
+        job: job
+          ? {
+              due: Number(job.due),
+              attempts: Number(job.attempts),
+              running: Number(job.lease_until) > Date.now(),
+            }
+          : null,
+        publications: repo
+          ? this.publications(repo, key)
+              .filter((p) => p.mode === 'live')
+              .slice(0, 10)
+          : [],
+      };
+    });
+    // Bound overview work independently of register size. Repeated failures do not
+    // fill the list, and a later successful check removes an old failure from it.
+    const recent: SavedCheck[] = [];
+    if (!query) {
+      const seen = new Set<string>();
+      const candidates = this.db
+        .prepare(
+          `SELECT data FROM checks
+        WHERE json_extract(data,'$.mode')='live' AND json_extract(data,'$.decision') IN ('needs_review','unavailable')
+        ORDER BY id DESC LIMIT 100`,
+        )
+        .all();
+      for (const row of candidates) {
+        const check = JSON.parse(String(row.data)) as Check;
+        const key = check.organisation.orgnr;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const latest = this.organisationChecks(key)[0];
+        if (latest && ['needs_review', 'unavailable'].includes(latest.decision)) recent.push(latest);
+        if (recent.length === 10) break;
+      }
+      recent.sort((a, b) => b.id - a.id);
+    }
+    return { items, truncated: rows.length > 25, recent };
   }
   publications(repo?: string, orgnr?: string): Publication[] {
     return this.db

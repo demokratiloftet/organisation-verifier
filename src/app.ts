@@ -121,7 +121,14 @@ export async function createApp(options: AppOptions) {
     issuanceScope: options.automation?.issuer ? (options.automation.issuer.scope ?? 'pilot') : null,
     ...store.status(),
   }));
-  app.get<{ Querystring: { view?: 'verified' | 'identity'; q?: string; page?: number; orgnr?: string } }>(
+  app.get<{
+    Querystring: {
+      view?: 'verified' | 'identity' | 'diagnostics';
+      q?: string;
+      page?: number;
+      orgnr?: string;
+    };
+  }>(
     '/api/state',
     {
       schema: {
@@ -129,7 +136,7 @@ export async function createApp(options: AppOptions) {
           type: 'object',
           additionalProperties: false,
           properties: {
-            view: { enum: ['verified', 'identity'] },
+            view: { enum: ['verified', 'identity', 'diagnostics'] },
             orgnr: { type: 'string', pattern: '^\\d{9}$' },
             q: { type: 'string', maxLength: 100 },
             page: { type: 'integer', minimum: 1, maximum: 100000 },
@@ -138,6 +145,10 @@ export async function createApp(options: AppOptions) {
       },
     },
     async (request, reply) => {
+      if (request.query.view === 'diagnostics') {
+        const issuer = options.automation?.issuer;
+        return store.diagnostics(request.query.q?.trim() ?? '', issuer && !issuer.private ? issuer.did : '');
+      }
       if (request.query.view === 'identity') {
         if (!request.query.orgnr) return reply.code(400).send({ error: 'Organisasjonsnummer mangler.' });
         const issuer = options.automation?.issuer;
