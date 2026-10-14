@@ -14,9 +14,65 @@
     </header>
     <main>
       <section class="intro">
-        <h1>Kontroller en organisasjon.</h1>
-        <p class="lead">Se om registrert nettside og atproto-konto hører sammen.</p>
+        <h1>Organisasjonsverifikasjon.</h1>
+        <p class="lead">Se verifiserte organisasjoner og kontroller koblingen mellom domene og konto.</p>
         <p class="guide-link"><a href="/?veiledning">Slik klargjør du kontoen for verifikasjon →</a></p>
+      </section>
+      <section id="verified-panel" class="verified-panel" aria-labelledby="verified-title">
+        <div class="section-heading">
+          <h2 id="verified-title">Verifiserte organisasjoner</h2>
+          <span id="verified-count" class="badge match">Laster …</span>
+        </div>
+        <p class="reason">
+          Aktive, publiserte verifikasjoner fra vår offentlige utsteder. Bekrefter domenetilknytning,
+          kontoidentitet og navnesamsvar.
+        </p>
+        <form id="verified-search" role="search">
+          <label for="verified-query">Finn en organisasjon</label>
+          <div class="form-row">
+            <input
+              id="verified-query"
+              type="search"
+              maxlength="100"
+              placeholder="Navn, org.nr. eller domene"
+            />
+            <button class="primary" type="submit">Søk i listen</button>
+          </div>
+        </form>
+        <p id="verified-message" class="reason" role="status" aria-live="polite">Henter verifikasjoner …</p>
+        <div
+          id="verified-table-wrap"
+          class="table-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="Verifiserte organisasjoner, rull sidelengs på små skjermer"
+          hidden
+        >
+          <table class="verified-table">
+            <caption class="sr-only">
+              Organisasjoner med aktiv publisert verifikasjon
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Organisasjon</th>
+                <th scope="col">Konto</th>
+                <th scope="col">Sist bekreftet</th>
+                <th scope="col">Verifikasjon</th>
+              </tr>
+            </thead>
+            <tbody id="verified-rows"></tbody>
+          </table>
+        </div>
+        <p class="mobile-table-hint muted">Rull tabellen sidelengs for dato og verifikasjon.</p>
+        <nav id="verified-pagination" class="pagination" aria-label="Sider i organisasjonslisten" hidden>
+          <button id="verified-prev" type="button">← Forrige</button>
+          <span id="verified-page" class="muted"></span>
+          <button id="verified-next" type="button">Neste →</button>
+        </nav>
+        <p class="muted">
+          Listen oppdateres automatisk. Tilbaketrukne verifikasjoner og records med publiseringsfeil vises
+          ikke. «Se record» åpner den offentlige bekreftelsen som JSON.
+        </p>
       </section>
       <nav class="tabs" aria-label="Datakilde">
         <button id="fixture-tab" class="tab active" aria-pressed="true">Prøv demo</button>
