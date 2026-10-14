@@ -1,18 +1,18 @@
 # LOFT-76: ferdigkriterier og videre bruk
 
-Oppdatert 13. oktober 2026. [LOFT-76](https://devotta.atlassian.net/browse/LOFT-76)
+Oppdatert 14. oktober 2026. [LOFT-76](https://devotta.atlassian.net/browse/LOFT-76)
 krever en full registergjennomgang og faktisk offentlig publisering. Kode og en
 positiv manuell kontroll er ikke alene nok til å lukke oppgaven.
 
 Fullimport er kjørt på VPS-en (1 177 860 enheter i snapshotet). Registerendringer
 og kontroller behandles fortløpende. Offentlig utstedelse er aktivert for Devotta;
 andre organisasjoner kontrolleres uten utstedelse. Automatikken er merget i PR #6.
-Den offentlige PDS-en og operatørsiden kjører på Demokratiloftet-domenet. Se
+Utstederkontoen ligger nå hos Eurosky; operatørsiden kjører på Demokratiloftet-domenet. Se
 [oppsett og gjennomført akseptanse](public-issuer.md).
 
 ## Kort restliste
 
-- [x] Dedikert offentlig Demokratiloftet-utsteder på egen VPS, med offentlig PLC/DNS og HTTPS.
+- [x] Dedikert offentlig Demokratiloftet-utsteder på Eurosky, med offentlig PLC/DNS og HTTPS.
 - [ ] Bekreft hva vi lover: domenetilknytning, navnekrav, delte domener og regler for tilbaketrekking. Fullfør angrepsgjennomgangen i LOFT-87.
 - [x] Fullfør import og endringsavstemming. Nye Brreg-endringer behandles fortløpende.
 - [x] Publiser Devotta-piloten offentlig og les recorden utenfra og fra begge egne apper. Ny kontroll beholdt samme record uten duplikater. Den gamle private verifikasjonen ble faktisk trukket tilbake; publisering/tilbaketrekking er også testet mot isolert PDS i CI.
@@ -27,12 +27,14 @@ inneholder `app.bsky.graph.verification`-records som peker på organisasjonenes 
 Å skrive den offentlige recorden til repositoryet er publiseringen; det er ikke
 et vanlig innlegg i en sosial feed. Kontoen som verifiseres er en annen rolle.
 
-Offentlig utsteder på egen VPS ble valgt 13. oktober. Utstederen er
-`verifikasjon.demokratiloftet.no`, DID `did:plc:coubd2izvctyl4emmh426pf7`.
-PDS-en er `https://pds.verifikasjon.demokratiloftet.no`. Publisheren låser
+Utstederen ble byttet til Eurosky 14. oktober:
+`er-verifier.demokratiloftet.no`, DID `did:plc:ajyco6mbknwtlx567ugu4wer`.
+PDS-en er `https://eurosky.social`. Publisheren låser
 utsteder-DID og pilotliste; bare Devotta kan få offentlig verifikasjon foreløpig.
 App-passord ligger i en beskyttet fil på VPS-en, aldri i chat, Git eller klientkode.
-Den tidligere private pilotkontoen er avviklet som utsteder; historikken beholdes.
+Både den tidligere private og den tidligere offentlige VPS-utstederens Devotta-records
+er trukket tilbake; historikken beholdes. Førstegangsforsøkene er gjennomført,
+men tekniske feil er fortsatt uavklarte og må ikke regnes som ferdige kontroller.
 
 ## Public Suffix List og domeneregelen
 

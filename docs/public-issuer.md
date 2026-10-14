@@ -1,112 +1,79 @@
-# Offentlig Demokratiloftet-utsteder
+# Offentlig Demokratiloftet-utsteder på Eurosky
 
-Besluttet 13. oktober 2026: eksterne leverandører skal kunne lese vanlige atproto-
-verifikasjoner. Utstederen bruker Demokratiloftet-domenet og en separat offentlig
-PDS på samme VPS. Hovednettsiden og de private demo-PDS-ene beholdes.
+Oppdatert 14. oktober 2026. Verifikatoren kjører fortsatt på vår VPS, men publiserer
+fra den dedikerte Eurosky-kontoen. Operatørsiden er fortsatt
+[verifikasjon.demokratiloftet.no](https://verifikasjon.demokratiloftet.no/).
 
-- Operatørside / handle: `https://verifikasjon.demokratiloftet.no`
-- Utsteder-DID: `did:plc:coubd2izvctyl4emmh426pf7`
-- PDS: `https://pds.verifikasjon.demokratiloftet.no`
+- Handle: `er-verifier.demokratiloftet.no`
+- Utsteder-DID: `did:plc:ajyco6mbknwtlx567ugu4wer`
+- PDS: `https://eurosky.social`
 - Collection: `app.bsky.graph.verification`
-- Første pilot: DEVOTTA AS (`922669708`). Andre enheter sjekkes uten utstedelse.
+- Aktiv pilot: DEVOTTA AS (`922669708`). Andre organisasjoner kontrolleres uten offentlig utstedelse.
 
-Den nye DID-en er registrert i **offentlig** PLC. TXT
-`_atproto.verifikasjon.demokratiloftet.no` og den offentlige
-`/.well-known/atproto-did` peker til samme DID; DID-dokumentet peker tilbake til
-handle og PDS. Dagens private pilot-DID tilhører en annen konto og skal ikke
-brukes av eksterne leverandører. Gamle private pilotrecords trekkes tilbake ved
-byttet. Historikken beholdes på VPS-en.
+DNS TXT på `_atproto.er-verifier.demokratiloftet.no` peker til denne DID-en.
+DID-dokumentet peker tilbake til handle og Eurosky. Utstederkontoen trenger ikke
+selv å bestå Brreg-kontrollen; leserne må uttrykkelig velge å stole på utstederen.
 
-## For MU og andre lesere
+## Hva publiseres?
 
-MU må selv velge å stole på utsteder-DID-en ovenfor. Tilgjengelig publisering
-betyr ikke at MU eller Bluesky har godkjent utstederen eller viser et merke.
+En offentlig record med `subject` (organisasjonskontoens DID), `handle`,
+`displayName` og `createdAt`. Den ligger i utstederens repository, ikke på
+organisasjonskontoen. Dette oppretter ikke et sosialt innlegg. Organisasjonsnummer,
+Brreg-grunnlag og intern kontrollhistorikk ligger fortsatt hos verifikatoren.
+Bekreftelsen gjelder domenetilknytning, toveis kontoidentitet og navnesamsvar;
+den beviser ikke juridisk fullmakt eller medlemskap.
+
+Lesere kan hente records med `com.atproto.repo.listRecords` på Eurosky og må følge
+`cursor`, kontrollere utsteder-DID, gjeldende handle/navn og håndtere tilbaketrekking.
+Offentlig tilgjengelighet betyr ikke automatisk merke eller godkjenning i MU,
+Bluesky eller andre apper. En JSON-record alene er ikke et selvstendig signaturbevis.
 
 ```text
-GET https://pds.verifikasjon.demokratiloftet.no/xrpc/com.atproto.repo.listRecords
-    ?repo=did:plc:coubd2izvctyl4emmh426pf7
+GET https://eurosky.social/xrpc/com.atproto.repo.listRecords
+    ?repo=did:plc:ajyco6mbknwtlx567ugu4wer
     &collection=app.bsky.graph.verification
 ```
 
-Følg `cursor` ved paginering. Records inneholder `subject` (organisasjonskontoens
-DID), `handle`, `displayName` og `createdAt`. Orgnummer og kontrollgrunnlag er ikke
-felter i standardrecorden. Tjenesten bekrefter koblingen mellom registrert domene,
-toveis atproto-identitet og profilnavn, ikke juridisk fullmakt eller medlemskap.
+## Bekreftet overgang 14. oktober
 
-Leseren må kontrollere riktig utsteder-repository, gjeldende handle/profilnavn og
-håndtere slettinger. Et uendret gammelt cachetreff er ikke tilstrekkelig.
-`com.atproto.sync.getRepo` og `com.atproto.sync.subscribeRepos` gir standard
-repoeksport og endringsstrøm; offentlig PLC gir nøklene til signaturverifikasjon.
-En JSON-record fra `getRecord` alene er ikke et selvstendig signaturbevis.
-
-Verifikasjonene og utstederprofilen er **offentlige** og kan kopieres og indekseres
-av andre. Kontoens masterlagring, nøkler, operatørhistorikk og Brreg-database er på
-vår VPS. Ingen privat demoaktivitet flyttes til den offentlige PDS-en. Kontoen
-oppretter ingen sosiale innlegg; standardrecorden er selve publiseringen.
-
-## Drift
-
-`deploy/public-pds/compose.yaml` starter kun den separate, digest-låste offisielle
-PDS-en, uten hostporter, på et eget internt backend-nett og et eget nett for
-utgående offentlig atproto-trafikk. Den er ikke medlem av demomiljøets nettverk.
-SSRF-beskyttelse og rate limits er på; selvregistrering og import er stengt.
-Det finnes ingen offentlig adminrute. Gatewayen tillater bare de dokumenterte
-leseendepunktene, utstedersesjonene og autentiserte record-writes.
-
-Eksisterende private Traefik skaffer sertifikatet med DNS-01. Den eksisterende
-sertifikattimeren kjører `deploy/public-pds/export-tls.py`; gatewayen laster den
-atomiske filen på nytt uten restart. Bare de to nye DNS A-recordene og utstederens
-TXT-record legges til. Ingen wildcard- eller apex-endring trengs.
-
-`deploy/public-pds/provision.py` gjenbruker konto og identitet ved omkjøring.
-Nøkler, admin-/master-/app-passord ligger bare i beskyttede filer under VPS-ens
-`/root/organisation-verifier/.runtime/`. De følger ikke Git, lokale maskiner eller
-nettlesersvar. E-postlevering er ikke satt opp; kontoen administreres av operatøren
-på VPS-en. Bevar PDS-data, PDS-konfigurasjon, kontofil og utstederpassord sammen.
-
-Verifier bruker `PUBLIC_ISSUANCE_ENABLED=true`, `PRIVATE_ISSUANCE_ENABLED=false`,
-den offentlige PDS-adressen, låst offentlig utsteder-DID og eksisterende pilotliste.
-Full registeravstemming og gjeldende policy kreves fortsatt før nye records.
-Omkjøring bruker samme record; endret grunnlag eller utløpt evidens trekker tilbake.
-
-Ved rollback skal offentlige records ikke forlates uten vedlikehold. Hold
-publisheren i drift eller trekk records kontrollert tilbake før den stoppes.
-Gjenopprett gateway/operatørkonfigurasjon fra VPS-backup ved rutefeil, men ikke
-slett PDS/PLC-identitet eller gjenopprett eldre data over nyere writes. Den gamle
-private kontoen og dens historikk beholdes for revisjon, ikke som parallell utsteder.
-
-## Kontrollert 13. oktober 2026
-
-Offentlig Devotta-verifikasjon ble utstedt av bakgrunnsarbeideren kl. 17:32 UTC,
-etter fersk Brreg-, domene-, toveis identitets-, profilnavn- og delte-domener-kontroll:
+Fersk Brreg-, domene-, toveis identitets- og profilnavnkontroll ga `match` for
+Devotta kl. 18.49 norsk tid (16.49 UTC). Bakgrunnsarbeideren publiserte:
 
 ```text
-at://did:plc:coubd2izvctyl4emmh426pf7/app.bsky.graph.verification/3mxrksmrlhs2n
+at://did:plc:ajyco6mbknwtlx567ugu4wer/app.bsky.graph.verification/3mxtyv4hdy22k
 subject: did:plc:f7vvzsi3zfydiswbw2uejxec
 handle: devotta.no
 displayName: Devotta AS
+createdAt: 2026-10-14T16:49:15.859Z
 ```
 
-- Recorden ble lest over offentlig HTTPS fra en ekstern klient uten innlogging.
-- En ny automatisk kontroll kl. 17:35 UTC beholdt samme record-nøkkel og `createdAt`, uten duplikat.
-- Social- og kalender-containerne hentet samme record uten utstederpassord. Deres begrensede nett bruker gateway `10.249.90.20:8443`, med offentlig PDS-host i både TLS SNI og HTTP Host og vanlig sertifikatvalidering. PDS-en er ikke koblet til det private demonettet.
-- Offentlig PLC, TXT og well-known peker til samme konto. HTTPS/SNI, repoeksport og faktisk WebSocket-oppgradering for endringsstrømmen passerte.
-- Operatørsiden krever innlogging (401 uten), og readiness svarte 200. Admin, registrering, import og rå XRPC-lesing av den private Spaces-PDS-en ble avvist. Eksisterende demoapper svarte fortsatt.
-- Den gamle private Devotta-recorden ble trukket tilbake før offentlig utstedelse. Kontrollhistorikken beholdes.
+Recorden ble lest offentlig uten innlogging. En ny kontroll kl. 18.50 beholdt
+samme URI, CID og `createdAt`, uten duplikater. Readiness svarte 200, og kontoen
+hadde ingen `app.bsky.feed.post`-records. Den gamle offentlige recorden hos
+`did:plc:coubd2izvctyl4emmh426pf7` ble deretter trukket tilbake gjennom publisherens
+varige `revoking`-tilstand. Ekstern lesing bekreftet `RecordNotFound`.
+Kontrollhistorikk og den gamle kontoen beholdes. Se
+[historisk VPS-oppsett](public-issuer-vps-history.md).
 
-To forbigående tidsavbrudd holdt først publiseringen tilbake. Vanlig retry lyktes;
-verken identitetskrav eller feilhåndtering ble svekket. Jetstream hadde dessuten
-gått tilbake i sekvensnummer med nyere hendelser. Arbeideren håndterer nå dette
-som et gap og planlegger nye autoritative kontroller; live strøm er i gang igjen.
+## Drift og hemmeligheter
 
-Utrullet verifier-revisjon: `bf004a73db9c23c18882a10d803cb95630e21a1e`.
-Gateway fra loftet-social: `2bc953ed556002de3b6b007fecb1970171b3802a`.
-Begge main-CI-kjøringene passerte, inkludert ekte isolert PDS og nettverksisolasjon;
-verifier har 35 beståtte tester. Oppsett, database og den nye PDS-en er sikkerhetskopiert
-på VPS-en. Automatisk GitHub-deploy av verifier er fortsatt pauset etter tidligere
-SSH-tidsavbrudd; denne utrullingen ble gjort manuelt.
+Eksisterende applikasjonsbilde og kontrollregler er beholdt. Bare utstederens PDS,
+DID, identifier og passordfil ble endret. Pilotlisten er fortsatt kun Devotta.
+Brreg-importen ble ikke kjørt på nytt. Worker- og endringsbehandling fortsetter.
 
-Dette er en offentlig pilot, ikke ferdig utrulling til alle organisasjoner. Første
-registerbatch kjører fortsatt. MU må velge å stole på utsteder-DID-en og implementere
-lesing/tilbaketrekking; synlige merker i social og kalender er heller ikke implementert.
-Driftsansvar, varsling og testet gjenoppretting gjenstår i [restlisten](roadmap.md).
+Et eget app-passord uten privilegert tilgang ble opprettet av operatøren og sendt
+rett til serveren over SSH. Kontopassordet ble ikke lagret på serveren.
+App-passordet ligger i `.runtime/eurosky-issuer-password`, under en root-beskyttet
+katalog (0700). Filen har modus 0600 og containerbrukerens UID/GID 1000 for lesing
+via Compose secret. Passord og sesjonstokens skal aldri inn i Git, logger eller chat.
+
+Compose-konfigurasjonen og deploy-metadata peker til Eurosky. En konsistent
+SQLite-sikkerhetskopi med bestått integritetskontroll og de tidligere
+konfigurasjonsfilene finnes på VPS-en i
+`/root/loftet-rollbacks/verifier-eurosky-20261014`.
+
+Rollback må avstemme offentlige records, ikke gjenopprette en gammel database over
+nyere historikk. Den gamle Devotta-recorden er trukket tilbake; et eventuelt bytte
+tilbake krever fersk kontroll og eksplisitt vedlikehold av begge utstederes records.
+Den gamle PDS-en er beholdt. Lesere som var konfigurert med gammel utsteder-DID,
+må bytte til den nye. Synlige merker i andre apper inngår ikke i denne overgangen.

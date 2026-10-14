@@ -59,7 +59,7 @@ publisher. Alt er avslått som standard. Se [automatikk, foreløpig policy og
 pilotoppsett](docs/automation.md) for oppstart og gjenstående aktivering.
 Den offentlige piloten utsteder for Devotta fra Demokratiloftets egen konto; se
 [utsteder og bekreftet pilot](docs/public-issuer.md). Fullregisteret er importert,
-men førstegangskontrollene pågår. Se [kort restliste for LOFT-76](docs/roadmap.md).
+og førstegangsforsøkene er gjennomført; tekniske feil og manuelle vurderinger gjenstår. Se [kort restliste for LOFT-76](docs/roadmap.md).
 
 ![Kontrollgrunnlag og publisering i demoen](docs/media/demo-overview.png)
 
