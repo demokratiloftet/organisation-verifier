@@ -137,3 +137,7 @@ Se [sikkerhetspolicy](SECURITY.md).
 - [Gjenstående arbeid](docs/roadmap.md) · [tidligere validering](docs/validation.md)
 
 Demokratiloftets [operatørside](https://verifikasjon.demokratiloftet.no/) krever innlogging.
+
+## Lisens
+
+Lisensiert under [MIT](LICENSE).
