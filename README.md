@@ -64,3 +64,7 @@ Operatørappen er tilgjengelig på loopback/SSH og skal ikke publiseres uten en
 egen autentiserings- og tilgangsmodell. Live-oppslag er kun lesing. Nettverksfeil
 skal aldri gi en ny positiv verifikasjon. Løpende VPS-oppdateringer er beskrevet i
 [driftsveiledningen](docs/operations.md).
+
+## Lisens
+
+Lisensiert under [MIT](LICENSE).
