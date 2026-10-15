@@ -1,9 +1,26 @@
 import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
 import type { AppBskyGraphVerification } from '@atproto/api';
-import type { Check, SavedCheck } from './domain.js';
+import {
+  registryHost,
+  websiteHandle,
+  hostVariants,
+  matchesName,
+  type Check,
+  type SavedCheck,
+  type Organisation,
+} from './domain.js';
+
+export interface Job {
+  key: string;
+  revision: number;
+  token: string;
+  attempts: number;
+}
 
 export type PublicationState = 'pending' | 'published' | 'revoking' | 'revoked';
 export interface Publication {
+  mode?: 'live' | 'fixture';
   rkey: string;
   repo: string;
   orgnr: string;
@@ -14,16 +31,281 @@ export interface Publication {
   updatedAt: string;
 }
 
+export interface VerifiedOrganisation {
+  orgnr: string;
+  name: string;
+  handle: string;
+  did: string;
+  rkey: string;
+  confirmedAt: string;
+}
+export interface VerifiedPage {
+  items: VerifiedOrganisation[];
+  total: number;
+  matching: number;
+  page: number;
+  pages: number;
+}
+
 export class Store {
   readonly db: DatabaseSync;
+  private claims = 0;
   constructor(path: string) {
     this.db = new DatabaseSync(path);
+    this.db.function('matches_name', { deterministic: true }, (registered, profile) =>
+      matchesName(String(registered ?? ''), String(profile ?? '')) ? 1 : 0,
+    );
+    this.db.function('casefold', { deterministic: true }, (value) =>
+      String(value ?? '')
+        .normalize('NFKC')
+        .toLocaleLowerCase('nb-NO'),
+    );
     this.db.exec(`
       PRAGMA journal_mode=WAL;
       PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS checks (id INTEGER PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS publications (rkey TEXT PRIMARY KEY, data TEXT NOT NULL);
     `);
+    const version = Number(this.db.prepare('PRAGMA user_version').get()!.user_version);
+    if (version > 1) throw new Error('Database schema is newer than this application.');
+    if (version < 1)
+      this.transaction(() =>
+        this.db.exec(`
+      CREATE TABLE organisations (
+        orgnr TEXT PRIMARY KEY, host TEXT, did TEXT, data TEXT NOT NULL,
+        next_check INTEGER NOT NULL DEFAULT 0, last_success INTEGER, seen TEXT
+      );
+      CREATE INDEX organisations_host ON organisations(host);
+      CREATE INDEX organisations_did ON organisations(did);
+      CREATE INDEX organisations_due ON organisations(next_check);
+      CREATE TABLE jobs (
+        key TEXT PRIMARY KEY, due INTEGER NOT NULL, revision INTEGER NOT NULL DEFAULT 1,
+        attempts INTEGER NOT NULL DEFAULT 0, lease_until INTEGER NOT NULL DEFAULT 0, token TEXT,
+        error TEXT, priority INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX jobs_due ON jobs(priority DESC,due,key);
+      CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE INDEX publications_owner ON publications(json_extract(data,'$.repo'),json_extract(data,'$.orgnr'));
+      PRAGMA user_version=1;
+    `),
+      );
+    // Existing databases gain a small index over candidates, rather than scanning
+    // a million organisations without websites on every scheduler tick.
+    this.db
+      .exec(`CREATE INDEX IF NOT EXISTS organisations_recheck_covering ON organisations(next_check,orgnr,did,host)
+      WHERE host IS NOT NULL OR did IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS organisations_checked ON organisations(last_success)
+      WHERE last_success IS NOT NULL`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS checks_organisation_mode ON checks(
+      json_extract(data,'$.organisation.orgnr'),json_extract(data,'$.mode'),id);
+      CREATE INDEX IF NOT EXISTS checks_attention ON checks(id)
+      WHERE json_extract(data,'$.mode')='live'
+      AND json_extract(data,'$.decision') IN ('needs_review','unavailable')`);
+  }
+  transaction<T>(action: () => T): T {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const result = action();
+      this.db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+  get(key: string): string | undefined {
+    const row = this.db.prepare('SELECT value FROM metadata WHERE key=?').get(key);
+    return row ? String(row.value) : undefined;
+  }
+  set(key: string, value: string): void {
+    this.db
+      .prepare('INSERT INTO metadata VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
+      .run(key, value);
+  }
+  organisation(orgnr: string): Organisation | undefined {
+    const row = this.db.prepare('SELECT data FROM organisations WHERE orgnr=?').get(orgnr);
+    return row ? (JSON.parse(String(row.data)) as Organisation) : undefined;
+  }
+  // Call inside the same transaction as the source cursor / import checkpoint.
+  upsertOrganisation(organisation: Organisation, seen?: string): void {
+    const host = organisation.deleted
+      ? null
+      : organisation.website
+        ? (registryHost(organisation.website) ?? null)
+        : null;
+    const previous = this.db
+      .prepare('SELECT host,data FROM organisations WHERE orgnr=?')
+      .get(organisation.orgnr);
+    const previousName = previous ? (JSON.parse(String(previous.data)) as Organisation).name : undefined;
+    this.db
+      .prepare(
+        `INSERT INTO organisations(orgnr,host,data,seen) VALUES (?,?,?,?)
+      ON CONFLICT(orgnr) DO UPDATE SET host=excluded.host,data=excluded.data,seen=COALESCE(excluded.seen,organisations.seen)`,
+      )
+      .run(organisation.orgnr, host, JSON.stringify(organisation), seen ?? null);
+    if (previous?.host !== host || previousName !== organisation.name) {
+      const priority = seen ? 0 : 1;
+      if (host) this.enqueue(organisation.orgnr, Date.now(), priority);
+      // A renamed/added/removed peer can make a previously unique name ambiguous.
+      // Import already queues every website while workers are paused; avoid quadratic fan-out.
+      if (seen) return;
+      for (const affectedHost of new Set([previous?.host, host])) {
+        if (!affectedHost) continue;
+        const variants = hostVariants(String(affectedHost));
+        const members = this.db
+          .prepare('SELECT orgnr,data,did FROM organisations WHERE host IN (?,?)')
+          .all(variants[0]!, variants[1] ?? null);
+        for (const member of members) {
+          const peer = JSON.parse(String(member.data)) as Organisation;
+          // Path-only tenants count in uniqueness, but cannot themselves be newly issued.
+          if (member.did || (peer.website && websiteHandle(peer.website)))
+            this.enqueue(String(member.orgnr), Date.now(), priority);
+        }
+      }
+    }
+  }
+  affected(did: string, handle?: string): string[] {
+    const variants = handle ? hostVariants(handle) : [];
+    return this.db
+      .prepare('SELECT orgnr FROM organisations WHERE did=? OR host IN (?,?)')
+      .all(did, variants[0] ?? null, variants[1] ?? null)
+      .map((row) => String(row.orgnr));
+  }
+  uniqueNameMatch(host: string, profileName: string, orgnr: string): boolean {
+    const variants = hostVariants(host);
+    // Include path-based websites and AS-equivalent names, not just eligible issuers.
+    // The host index bounds this lookup; stop as soon as a second match is found.
+    const matches = this.db
+      .prepare(
+        `SELECT orgnr FROM organisations WHERE host IN (?,?)
+        AND matches_name(json_extract(data,'$.name'),?) LIMIT 2`,
+      )
+      .all(variants[0]!, variants[1] ?? null, profileName);
+    return matches.length === 1 && matches[0]!.orgnr === orgnr;
+  }
+  enqueue(orgnr: string, due = Date.now(), priority = 1): void {
+    this.db
+      .prepare(
+        `INSERT INTO jobs(key,due,priority) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET
+      due=MIN(jobs.due,excluded.due),priority=MAX(jobs.priority,excluded.priority),revision=jobs.revision+1`,
+      )
+      .run(orgnr, due, priority);
+  }
+  schedule(now = Date.now()): void {
+    this.db
+      .prepare(
+        `INSERT INTO jobs(key,due,priority) SELECT orgnr,?,CASE WHEN did IS NULL THEN 0 ELSE 1 END FROM organisations INDEXED BY organisations_recheck_covering
+      WHERE next_check<=? AND (host IS NOT NULL OR did IS NOT NULL) ON CONFLICT(key) DO NOTHING`,
+      )
+      .run(now, now);
+  }
+  claim(now = Date.now()): Job | undefined {
+    return this.transaction(() => {
+      let row = this.db
+        .prepare(
+          'SELECT key,revision,attempts,priority FROM jobs WHERE due<=? AND lease_until<=? ORDER BY priority DESC,due,key LIMIT 1',
+        )
+        .get(now, now);
+      // Reserve every fourth claim for the initial scan. Retries and events must
+      // not starve it indefinitely; explicit pilot jobs (priority 2) still go first.
+      if (row && ++this.claims % 4 === 0) {
+        if (Number(row.priority) < 2)
+          row =
+            this.db
+              .prepare(
+                'SELECT key,revision,attempts FROM jobs WHERE priority=0 AND due<=? AND lease_until<=? ORDER BY due,key LIMIT 1',
+              )
+              .get(now, now) ?? row;
+      }
+      if (!row) return;
+      const token = randomUUID();
+      this.db
+        .prepare('UPDATE jobs SET token=?,lease_until=? WHERE key=?')
+        .run(token, now + 120_000, String(row.key));
+      return { key: String(row.key), revision: Number(row.revision), attempts: Number(row.attempts), token };
+    });
+  }
+  owns(job: Job): boolean {
+    return !!this.db
+      .prepare('SELECT 1 FROM jobs WHERE key=? AND token=? AND lease_until>?')
+      .get(job.key, job.token, Date.now());
+  }
+  current(job: Job): boolean {
+    return (
+      this.owns(job) &&
+      this.db.prepare('SELECT revision FROM jobs WHERE key=?').get(job.key)?.revision === job.revision
+    );
+  }
+  finish(job: Job, error?: string, now = Date.now(), maxRetryDelay = 3_600_000): void {
+    if (error) {
+      this.db
+        .prepare(
+          `UPDATE jobs SET token=NULL,lease_until=0,attempts=attempts+1,error=?,due=?
+        WHERE key=? AND token=?`,
+        )
+        .run(
+          error,
+          now + Math.min(maxRetryDelay, 30_000 * 2 ** Math.min(job.attempts, 12)),
+          job.key,
+          job.token,
+        );
+    } else
+      this.transaction(() => {
+        this.db
+          .prepare('DELETE FROM jobs WHERE key=? AND token=? AND revision=?')
+          .run(job.key, job.token, job.revision);
+        // An event arrived while checking. Keep it queued for another authoritative check.
+        this.db
+          .prepare('UPDATE jobs SET token=NULL,lease_until=0,attempts=0,error=NULL WHERE key=? AND token=?')
+          .run(job.key, job.token);
+      });
+  }
+  checked(check: Check, nextCheck: number): void {
+    this.upsertOrganisation(check.organisation);
+    this.saveCheck(check);
+    this.db
+      .prepare(
+        `UPDATE organisations SET did=CASE WHEN ? THEN did ELSE ? END,
+      last_success=CASE WHEN ? THEN last_success ELSE ? END,next_check=? WHERE orgnr=?`,
+      )
+      .run(
+        check.decision === 'unavailable' ? 1 : 0,
+        check.identity?.did ?? null,
+        check.decision === 'unavailable' ? 1 : 0,
+        Date.parse(check.checkedAt),
+        nextCheck,
+        check.organisation.orgnr,
+      );
+  }
+  lastSuccess(orgnr: string): number | undefined {
+    const value = this.db
+      .prepare('SELECT last_success FROM organisations WHERE orgnr=?')
+      .get(orgnr)?.last_success;
+    return value == null ? undefined : Number(value);
+  }
+  status() {
+    return {
+      organisations: Number(this.db.prepare('SELECT count(*) AS n FROM organisations').get()!.n),
+      queued: Number(this.db.prepare('SELECT count(*) AS n FROM jobs').get()!.n),
+      retrying: Number(this.db.prepare('SELECT count(*) AS n FROM jobs WHERE attempts>0').get()!.n),
+      discovery: Number(this.db.prepare("SELECT count(*) AS n FROM jobs WHERE key GLOB 'did:*'").get()!.n),
+      withWebsite: Number(
+        this.db.prepare('SELECT count(*) AS n FROM organisations WHERE host IS NOT NULL').get()!.n,
+      ),
+      completed: Number(
+        this.db.prepare('SELECT count(*) AS n FROM organisations WHERE last_success IS NOT NULL').get()!.n,
+      ),
+      oldestDue: this.db.prepare('SELECT min(due) AS due FROM jobs').get()!.due,
+      recentErrors: this.db
+        .prepare('SELECT key,attempts,error FROM jobs WHERE error IS NOT NULL ORDER BY due LIMIT 10')
+        .all(),
+      progress: Object.fromEntries(
+        this.db
+          .prepare('SELECT key,value FROM metadata')
+          .all()
+          .map((row) => [String(row.key), String(row.value)]),
+      ),
+    };
   }
   saveCheck(check: Check): SavedCheck {
     const result = this.db.prepare('INSERT INTO checks(data) VALUES (?)').run(JSON.stringify(check));
@@ -42,11 +324,121 @@ export class Store {
       )
       .run(publication.rkey, JSON.stringify(publication));
   }
-  publications(): Publication[] {
+  organisationChecks(orgnr: string): SavedCheck[] {
     return this.db
-      .prepare('SELECT data FROM publications ORDER BY rowid DESC')
-      .all()
+      .prepare(
+        `SELECT id,data FROM checks
+      WHERE json_extract(data,'$.organisation.orgnr')=? AND json_extract(data,'$.mode')='live'
+      ORDER BY id DESC LIMIT 20`,
+      )
+      .all(orgnr)
+      .map((row) => ({ ...(JSON.parse(String(row.data)) as Check), id: Number(row.id) }));
+  }
+  diagnostics(query: string, repo: string) {
+    const orgnr = query.replaceAll(' ', '');
+    const host = websiteHandle(query.toLowerCase());
+    if (query && !/^\d{9}$/.test(orgnr) && !host)
+      throw Object.assign(new Error('Skriv et organisasjonsnummer eller et domene uten sti.'), {
+        statusCode: 400,
+      });
+    const variants = host ? hostVariants(host) : [];
+    const rows = !query
+      ? []
+      : /^\d{9}$/.test(orgnr)
+        ? this.db.prepare('SELECT orgnr,data,next_check FROM organisations WHERE orgnr=?').all(orgnr)
+        : this.db
+            .prepare(
+              'SELECT orgnr,data,next_check FROM organisations WHERE host IN (?,?) ORDER BY orgnr LIMIT 26',
+            )
+            .all(variants[0] ?? null, variants[1] ?? null);
+    const items = rows.slice(0, 25).map((row) => {
+      const key = String(row.orgnr);
+      const job = this.db.prepare('SELECT due,attempts,lease_until FROM jobs WHERE key=?').get(key);
+      return {
+        organisation: JSON.parse(String(row.data)) as Organisation,
+        checks: this.organisationChecks(key),
+        nextCheck: Number(row.next_check),
+        job: job
+          ? {
+              due: Number(job.due),
+              attempts: Number(job.attempts),
+              running: Number(job.lease_until) > Date.now(),
+            }
+          : null,
+        publications: repo
+          ? this.publications(repo, key)
+              .filter((p) => p.mode === 'live')
+              .slice(0, 10)
+          : [],
+      };
+    });
+    // Bound overview work independently of register size. Repeated failures do not
+    // fill the list, and a later successful check removes an old failure from it.
+    const recent: SavedCheck[] = [];
+    if (!query) {
+      const seen = new Set<string>();
+      const candidates = this.db
+        .prepare(
+          `SELECT data FROM checks
+        WHERE json_extract(data,'$.mode')='live' AND json_extract(data,'$.decision') IN ('needs_review','unavailable')
+        ORDER BY id DESC LIMIT 100`,
+        )
+        .all();
+      for (const row of candidates) {
+        const check = JSON.parse(String(row.data)) as Check;
+        const key = check.organisation.orgnr;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const latest = this.organisationChecks(key)[0];
+        if (latest && ['needs_review', 'unavailable'].includes(latest.decision)) recent.push(latest);
+        if (recent.length === 10) break;
+      }
+      recent.sort((a, b) => b.id - a.id);
+    }
+    return { items, truncated: rows.length > 25, recent };
+  }
+  publications(repo?: string, orgnr?: string): Publication[] {
+    return this.db
+      .prepare(
+        repo && orgnr
+          ? "SELECT data FROM publications WHERE json_extract(data,'$.repo')=? AND json_extract(data,'$.orgnr')=? ORDER BY rowid DESC"
+          : 'SELECT data FROM publications ORDER BY rowid DESC LIMIT 100',
+      )
+      .all(...(repo && orgnr ? [repo, orgnr] : []))
       .map((row) => JSON.parse(String(row.data)) as Publication);
+  }
+  verifiedOrganisations(repo: string, query = '', requestedPage = 1): VerifiedPage {
+    const scope = `json_extract(data,'$.repo')=? AND json_extract(data,'$.mode')='live'
+      AND json_extract(data,'$.state')='published' AND coalesce(json_extract(data,'$.error'),'')=''`;
+    const search = ` AND instr(casefold(json_extract(data,'$.record.displayName') || ' ' ||
+      json_extract(data,'$.orgnr') || ' ' || json_extract(data,'$.record.handle')),?)>0`;
+    const args = query ? [repo, query.normalize('NFKC').toLocaleLowerCase('nb-NO')] : [repo];
+    const where = scope + (query ? search : '');
+    const total = Number(this.db.prepare(`SELECT count(*) n FROM publications WHERE ${scope}`).get(repo)!.n);
+    const matching = query
+      ? Number(this.db.prepare(`SELECT count(*) n FROM publications WHERE ${where}`).get(...args)!.n)
+      : total;
+    const pages = Math.max(1, Math.ceil(matching / 25));
+    const page = Math.max(1, Math.min(requestedPage, pages));
+    const items = this.db
+      .prepare(
+        `SELECT data FROM publications WHERE ${where}
+      ORDER BY casefold(json_extract(data,'$.record.displayName')),json_extract(data,'$.orgnr'),rkey
+      LIMIT 25 OFFSET ?`,
+      )
+      .all(...args, (page - 1) * 25)
+      .map((row) => {
+        const p = JSON.parse(String(row.data)) as Publication;
+        return {
+          orgnr: p.orgnr,
+          name: p.record.displayName,
+          handle: p.record.handle,
+          did: p.record.subject,
+          rkey: p.rkey,
+          confirmedAt: p.updatedAt,
+        };
+      });
+    return { items, total, matching, page, pages };
   }
   close(): void {
     this.db.close();

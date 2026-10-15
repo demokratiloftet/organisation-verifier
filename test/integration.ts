@@ -20,8 +20,12 @@ async function run(scenario: string) {
     headers: { 'content-type': 'application/json', origin: base },
     body: JSON.stringify({ scenario }),
   });
-  assert.equal(response.status, 200, await response.text());
-  return state();
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+  const result = JSON.parse(body) as { check: SavedCheck };
+  const current = await state();
+  assert.deepEqual(result.check, current.checks[0], 'Return the requested result directly to the operator');
+  return current;
 }
 async function records(repo: string) {
   return (await pds.com.atproto.repo.listRecords({ repo, collection, limit: 100 })).data.records;

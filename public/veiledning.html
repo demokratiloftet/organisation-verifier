@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="nb">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Klargjør kontoen for verifikasjon — Loftet</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/" aria-label="Loftet, startside"><span class="mark">L</span> demokratiloftet</a>
+      <span class="muted">Verifikasjon</span>
+    </header>
+    <main>
+      <div class="intro">
+        <h1>Klargjør kontoen for verifikasjon.</h1>
+        <p class="lead">Koble organisasjonens domene til kontoen med DNS eller en fil på nettsiden.</p>
+        <p class="guide-link"><a href="/">← Tilbake til kontrollen</a></p>
+      </div>
+      <article class="guide" aria-label="Veiledning for kontoeiere">
+        <p class="guide-note">
+          Ingen konto funnet er et normalt resultat, ikke en teknisk feil. Du kan opprette og koble til
+          kontoen senere. Automatisk utstedelse krever at alle kontrollene består, inkludert ferske
+          registeropplysninger, et entydig domene, toveis kontokobling og samsvarende profilnavn. Et godkjent
+          kontrollresultat gir ikke automatisk et merke i alle apper.
+        </p>
+        <section>
+          <h2>1. Opprett en konto og finn kontoens DID</h2>
+          <p>
+            Bruk organisasjonens konto hos en atproto-leverandør. Finn innstillingen for eget domene eller
+            endring av handle (brukernavn). Der får du normalt kontoens DID eller DNS-verdien du skal bruke.
+            Kontakt leverandøren dersom den ikke viser dette.
+          </p>
+          <p>
+            DID er kontoens varige, offentlige identifikator, for eksempel en verdi som begynner med
+            <code>did:plc:</code>. Bruk hele verdien for din egen konto. I eksemplene nedenfor skal
+            <code>DIN_DID</code> erstattes med denne verdien.
+          </p>
+        </section>
+        <section>
+          <h2>2. Velg domenet som står i Brreg</h2>
+          <p>
+            Organisasjonens registrerte hjemmeside må samsvare med domenet du bruker som handle. Vi bruker
+            <code>example.com</code> som eksempel her. Hvis hjemmesiden er <code>www.example.com</code>, kan
+            kontoen bruke <code>example.com</code> gjennom tjenestens avgrensede www-regel. Andre underdomener
+            godkjennes ikke automatisk som erstatning.
+          </p>
+          <p>
+            Rett hjemmesiden i Brreg hvis den er feil. Et delt domene kan godkjennes når profilnavnet matcher
+            nøyaktig én av organisasjonene som har registrert domenet. Adresser med sti, som
+            <code>example.com/min-bedrift</code>, gir ikke automatisk verifikasjon, men telles med når vi
+            kontrollerer at navnet er entydig.
+          </p>
+        </section>
+        <section>
+          <h2>3. Koble domenet til DID-en — velg én metode</h2>
+          <h3>Alternativ A: DNS (anbefalt)</h3>
+          <p>Legg til en TXT-post hos leverandøren som administrerer domenets DNS:</p>
+          <table>
+            <tbody>
+              <tr>
+                <th scope="row">Type</th>
+                <td><code>TXT</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Fullt navn</th>
+                <td><code>_atproto.example.com</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Verdi</th>
+                <td><code>did=DIN_DID</code></td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            Mange DNS-paneler legger til <code>.example.com</code> automatisk. Da skriver du bare
+            <code>_atproto</code> i navnefeltet. For handlen <code>www.example.com</code> er det fulle navnet
+            <code>_atproto.www.example.com</code>. Behold bare én DID-verdi på det aktuelle navnet. Vanlige
+            DNS-poster for nettside og e-post skal beholdes.
+          </p>
+          <h3>Alternativ B: HTTPS well-known</h3>
+          <p>Gjør følgende adresse tilgjengelig uten innlogging på domenet du vil bruke:</p>
+          <pre><code>https://example.com/.well-known/atproto-did</code></pre>
+          <p>Svaret skal være ren tekst med hele kontoens DID:</p>
+          <pre><code>DIN_DID</code></pre>
+          <p>
+            Bruk HTTP-status <code>200</code>, innholdstype <code>text/plain</code> og gyldig HTTPS på
+            standardport 443. Her skal det ikke stå <code>did=</code> foran DID-en, og svaret skal ikke være
+            HTML eller JSON. DNS-metoden trenger prefikset; denne metoden trenger det ikke.
+          </p>
+          <p>
+            Velg gjerne bare DNS-metoden. Bruker du begge, må de vise samme DID. DNS-endringer kan bruke tid
+            på å bli synlige; et kortvarig oppslagsproblem betyr ikke at oppsettet er feil.
+          </p>
+        </section>
+        <section>
+          <h2>4. Fullfør domenebyttet hos kontoleverandøren</h2>
+          <p>
+            Gå tilbake til kontoinnstillingene, velg domenet som handle og fullfør leverandørens kontroll.
+            DNS-posten eller filen alene er ikke nok: kontoen må også peke tilbake til samme domene.
+            Kontoleverandøren håndterer normalt denne delen. Kontoen må være aktiv.
+          </p>
+        </section>
+        <section>
+          <h2>5. Bruk organisasjonens registrerte navn</h2>
+          <p>
+            Sett profilens visningsnavn til organisasjonens navn i Brreg. Store og små bokstaver og ekstra
+            mellomrom godtas. Et avsluttende <code>AS</code> i Brreg-navnet kan utelates:
+            <code>AFTENPOSTEN AS</code> kan bruke <code>Aftenposten</code>. Andre forkortelser,
+            selskapsendelser og merkenavn som avviker krever vurdering. Matcher navnet flere organisasjoner på
+            samme domene, godkjennes ingen av dem automatisk.
+          </p>
+        </section>
+        <section>
+          <h2>6. Kontroller resultatet</h2>
+          <p>
+            Operatøren kan åpne <a href="/">forsiden</a>, velge «Søk i Brreg», skrive organisasjonsnummeret og
+            kjøre en fersk kontroll. Denne kontrollen publiserer ingenting. Offentlig utstedelse håndteres av
+            automatikken når alle vilkårene er oppfylt og offentlig utstedelse er aktivert.
+          </p>
+          <p>
+            Tjenesten følger kontohendelser. Når en hendelse knytter domenet til en konto, legges berørte
+            organisasjoner i kø for ny kontroll. Nye kontoer uten kjent domene kan først trenge et eget
+            oppslag. Det er derfor ikke en garanti om umiddelbar verifikasjon.
+          </p>
+          <p>
+            Organisasjoner uten treff kontrolleres også på nytt ukentlig. Endrer du bare DNS eller well-known
+            uten at kontoleverandøren sender en hendelse, kan det ta til neste planlagte kontroll. En operatør
+            kan sjekke oppsettet manuelt i mellomtiden.
+          </p>
+          <p>
+            «Ingen kobling» betyr at en toveis bekreftet konto ikke ble funnet. «Må vurderes» betyr at
+            automatisk godkjenning holdes tilbake. «Kunne ikke kontrolleres» betyr at kildene ikke ga et
+            sikkert svar; forsøket gjentas senere.
+          </p>
+        </section>
+        <p>
+          Teknisk referanse:
+          <a href="https://atproto.com/specs/handle"
+            >AT-protokollens dokumentasjon for DNS, HTTPS og toveis kobling</a
+          >. Bruker du Bluesky, se også
+          <a href="https://bsky.social/about/blog/4-28-2023-domain-handle-tutorial"
+            >deres veiledning for eget domene</a
+          >.
+        </p>
+      </article>
+      <footer>Kontrollerer domenetilknytning, ikke juridisk fullmakt.</footer>
+    </main>
+  </body>
+</html>

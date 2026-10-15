@@ -1,118 +1,109 @@
 # Arkitektur
 
-## Avgrensning
+Tjenesten finner eksisterende atproto-kontoer fra hjemmesider i Enhetsregisteret.
+Den oppretter ikke kontoer for organisasjonene. Brreg-hjemmesiden er en registrert
+påstand; toveis domene/DID-kontroll og samsvarende profilnavn er grunnlaget for
+utstederens verifikasjon. Det beviser ikke juridisk representasjonsrett.
 
-LOFT-76 handler om å finne **eksisterende** atproto-kontoer for registrerte organisasjoner. Ingen lager en bedriftsbruker i denne appen. Det er derfor ikke nødvendig med e-postverifisering, BankID, organisasjonsonboarding eller det eksisterende `identity-component` for å demonstrere denne oppgaven.
-
-Registrert hjemmeside er en påstand i Brreg. Toveis handle/DID-kontroll viser kontroll over et domene og en konto. Sammen er dette et grunnlag for utstederens vurdering; det er ikke bevis på juridisk representasjonsrett. En produksjonspolicy må ta høyde for feil registrering, delte domener og flere enheter på samme domene.
-
-## Komponenter
-
-```mermaid
-flowchart LR
-  Operator[Operatør i nettleser] -->|loopback eller SSH| App[Fastify + enkel webside]
-  App --> Sources[Kildeadaptere]
-  Sources -->|HTTPS, kun lesing| Brreg[Brreg API]
-  Sources -->|sikker resolver + HTTPS| Public[Offentlige handles, DID og PDS]
-  Sources --> Policy[Ren kontrollpolicy]
-  Policy --> DB[(SQLite: grunnlag + publiseringsintensjon)]
-  DB --> Publisher[atproto-publisher]
-  subgraph Isolated[Internt Docker-nett uten internettilgang]
-    Fixture[Fiktivt registergrunnlag]
-    PLC[Lokal PLC-katalog]
-    PDS[Ekte test-PDS]
-  end
-  Sources --> Fixture
-  Sources --> PLC
-  Sources --> PDS
-  Publisher -->|bare fixture-modus| PDS
-```
-
-Appen har utgående tilgang for offentlige oppslag. Fixture-containeren har bare et internt Docker-nett. Ingen PDS-/PLC-porter publiseres på verten. Webappen binder bare `127.0.0.1:3012` på verten. Eksisterende tjenester på VPS-en brukes ikke eller endres.
-
-| Fil                  | Ansvar                                                               |
-| -------------------- | -------------------------------------------------------------------- |
-| `src/domain.ts`      | URL/handle-regler, første gyldige DID-alias, ren beslutningsfunksjon |
-| `src/sources.ts`     | Brreg API, offentlig identitetsoppløsning og separat fixture-adapter |
-| `src/publisher.ts`   | Lexicon-validert record, stabil TID, gjenfinning og sletting         |
-| `src/store.ts`       | SQLite, varig kontrollgrunnlag og publiseringsstatus                 |
-| `src/app.ts`         | Validerte operatørendepunkter, én samtidig kjøring, webressurser     |
-| `fixture/server.mjs` | Offisiell `@atproto/dev-env`: lokal PLC og PDS med fiktive kontoer   |
-| `public/`            | HTML, CSS og nettleser-JavaScript uten eksterne ressurser            |
-
-## Kontrollflyten
+## Dataflyt
 
 ```mermaid
-sequenceDiagram
-  actor O as Operatør
-  participant A as App
-  participant R as Registeradapter
-  participant I as Identitetsadapter
-  participant D as SQLite
-  participant P as Utstederens test-PDS
-  O->>A: Kjør kontroll
-  A->>R: Hent organisasjon og hjemmeside
-  R-->>A: Registergrunnlag
-  A->>I: Hjemmeside → handle → DID
-  I->>I: DID → første gyldige handle; må samsvare
-  I->>I: Hent profil fra PDS
-  I-->>A: Identitet og profilnavn
-  A->>A: Vurder domene og navn
-  A->>D: Lagre grunnlag og beslutning
-  alt Fixture med samsvar
-    A->>D: Lagre pending med valgt TID og createdAt
-    A->>P: getRecord ved samme TID
-    opt Recorden finnes ikke
-      A->>P: putRecord med den lagrede recorden
-    end
-    A->>D: Marker published
-  else Fixture med endret grunnlag
-    A->>D: Marker revoking
-    A->>P: getRecord; sjekk innhold; deleteRecord
-    A->>D: Marker revoked
-  else Live eller midlertidig feil
-    A->>A: Ingen publisering
-  end
-  A-->>O: Resultat, grunnlag og publiseringsstatus
+flowchart TD
+  Brreg[Brreg API] -->|fullimport og endringer| Index[(SQLite: registerindeks og jobber)]
+  Jetstream[Jetstream] -->|varsler om ny kontroll| Index
+  Index --> Worker[Bakgrunnsarbeider]
+  Operator[Autentisert operatør] --> Manual[Manuelt live-oppslag]
+  Worker --> Sources[Ferskt Brreg-oppslag og identitetskontroll]
+  Manual --> Sources
+  Sources --> Identity[DNS / HTTPS → DID → PDS-status og profil]
+  Identity --> Policy[Ren kontrollpolicy]
+  Policy --> Checks[(SQLite: kontrollresultat)]
+  Checks --> Gate[Bakgrunn: omfang, registerferskhet og delte domener]
+  Gate --> Intent[(SQLite: publiseringsintensjon)]
+  Intent --> Publisher[Publisher]
+  Publisher -->|eksplisitt aktivert| PDS[Utstederens offentlige PDS]
 ```
 
-Publiseringsstatus er adskilt fra kontrollresultat: `match`, `no_match`, `needs_review`, `unavailable`. Ved midlertidig feil beholdes en eksisterende testrecord. Dette er ikke en ferdig produksjonspolicy for hvor lenge en verifikasjon kan leve uten oppdatert grunnlag.
+Diagrammet viser live-data. Manuelle oppslag lagrer bare resultatet; de starter
+ikke publisering. Demonstrasjonen bruker en separat adapter med fiktivt
+registergrunnlag, lokal PLC-katalog og ekte isolert test-PDS.
 
-## atproto-detaljer
+## Moduler
 
-Offentlig identitet bruker `@atproto/identity` med SSRF-beskyttet standardtransport. Resolveren støtter DNS/HTTPS-handleoppslag og DID-oppløsning. Profiloppslaget bruker `safeFetchWrap` med HTTPS, kontroll av IP-adresser ved tilkobling, begrenset responsstørrelse og tidsavbrudd. Private IP-er, egendefinerte porter og omdirigeringer aksepteres ikke i dette profiloppslaget.
+| Modul               | Ansvar                                                                    |
+| ------------------- | ------------------------------------------------------------------------- |
+| `domain.ts`         | URL/handle-regler, navnenormalisering og ren beslutningsfunksjon          |
+| `sources.ts`        | Brreg-enhetsoppslag, kontrollflyt og separat fixture-adapter              |
+| `identity.ts`       | DNS/HTTPS-handle, DID-dokument, kontostatus og profil fra PDS             |
+| `registry.ts`       | Strømmet fullimport, registerendringer og varig cursor                    |
+| `jetstream.ts`      | Kølegge ny kontroll ved konto-/profilhendelser                            |
+| `worker.ts`         | Hente grunnlag, vurdere delte domener og styre utstedelse/tilbaketrekking |
+| `automation.ts`     | Registerpoll og begrenset pool i samme prosess                            |
+| `publisher.ts`      | Validere record, lagre intensjon, avstemme og skrive/slette via SDK       |
+| `store.ts`          | SQLite, indekser, kontrollhistorikk og jobber med tidsbegrenset eierskap  |
+| `app.ts`, `public/` | Fastify og enkel operatørside uten frontend-rammeverk                     |
 
-Fixture-modus går bevisst til faste lokale endepunkter. Den løser faktiske handles via test-PDS, leser DID-dokumenter fra lokal PLC og sjekker tilbakeretningen. Fixture-passordet er en offentlig kjent testverdi; containeren må aldri eksponeres offentlig.
+## Hvilke kilder brukes?
 
-`app.bsky.graph.verification` inneholder:
+- Brreg: `/enheter/{orgnr}` for ferske oppslag, `/enheter/lastned` for gzip-import,
+  `/oppdateringer/enheter` for endringer, under `https://data.brreg.no/enhetsregisteret/api`.
+- Handle: DNS TXT på `_atproto.<handle>`, deretter HTTPS well-known ved behov.
+- DID: `did:plc` via PLC-katalogen; `did:web` via domenets DID-dokument.
+- Konto: PDS fra DID-dokumentet, med `com.atproto.sync.getRepoStatus` og
+  `com.atproto.repo.getRecord` for `app.bsky.actor.profile/self`.
+- Jetstream: konto-, identitets- og profilendringer gir nye jobber, aldri godkjenning.
 
-```json
-{
-  "$type": "app.bsky.graph.verification",
-  "subject": "did:plc:<kontoens DID>",
-  "handle": "fjordverk.test",
-  "displayName": "Fjordverk AS",
-  "createdAt": "2026-10-07T12:00:00.000Z"
-}
-```
+Fullregisteret er en oppdagelsesindeks og brukes til konfliktkontroll. Positive
+indekstreff kontrolleres på nytt med ferske kilder. Import skjer i bolker på 250;
+hele filen holdes ikke i minnet. Cursor og tilhørende jobber lagres i samme transaksjon.
+Se [automatikk](automation.md) for kommandoer, intervaller og gjenoppretting.
 
-Recorden ligger i **utstederens** repository. Organisasjonsnummer og kontrollgrunnlag lagres lokalt; lexiconet har ikke egne felt for disse. Visning som et Bluesky-verifikasjonsmerke forutsetter at klientens tillitsmodell godtar utstederen.
+## Kontrollregler
 
-En omkjøring gjenbruker TID og `createdAt`. Ukjent utfall etter et nettverksbrudd avklares med `getRecord`; vi utsteder ikke en ekstra record. Ukjent eller endret innhold på samme nøkkel holdes tilbake for manuell kontroll. Ny kontroll etter prosessrestart avklarer igjen. Det kjører foreløpig ingen automatisk bakgrunnsjobb for dette.
+- Bruk det registrerte vertsnavnet først. Bare ved fravær av bekreftet konto kan
+  én innledende `www.` fjernes. Public Suffix List hindrer fallback til selve
+  suffixet, også for delte plattformer. Andre foreldredomener prøves ikke.
+- Sti, query, fragment, brukerinformasjon eller egen port gir vurderingsbehov.
+- Første gyldige `at://`-alias i DID-dokumentet må være handle-kandidaten.
+- Kontoen må være aktiv, og profilnavnet må samsvare etter Unicode-, mellomrom-
+  og bokstavnormalisering. Ett avsluttende, separat `AS` i Brreg-navnet kan
+  utelates i profilnavnet. `ASA`, `A/S`, prefikser og merkenavn får ingen unntak.
+- Bakgrunnsarbeideren krever at profilnavnet matcher nøyaktig én organisasjon på
+  domenet, gruppert med og uten `www`. Enheter med sti telles med. To navnetreff,
+  også etter AS-unntaket, gir vurderingsbehov; eksakt navn får ikke forrang.
+  Manuelle oppslag har ikke denne fullregisterkontrollen.
+- Unikheten kontrolleres igjen rett før en ny record skrives. Navne- og
+  domeneendringer kølegger berørte kontoer på nytt, også når domenet allerede deles
+  av mange enheter. Path-baserte enheter uten kjent konto trenger ikke ny
+  identitetskontroll selv, men teller fortsatt når unikheten vurderes.
+- Usikre kilder gir `unavailable`, aldri godkjenning. Eksisterende verifikasjon
+  beholdes ved kortvarig feil, men trekkes tilbake etter syv dager uten fullført kontroll.
 
-## Valgt demopolicy
+## Publisering
 
-- Bare eksakt registrert vertsnavn. `www` fjernes ikke automatisk, og vi hopper ikke til foreldredomener.
-- Sti, query, fragment, brukerinformasjon eller egen port krever vurdering.
-- Første syntaktisk gyldige `at://`-alias i DID-dokumentet må være handle-kandidaten.
-- Profilnavnet må samsvare med registernavnet etter normalisering av Unicode, mellomrom og store/små bokstaver. Dette er et konservativt demovalg, ikke en avklart forretningsregel.
-- Slettet organisasjon, endret domene, brutt identitet eller avvikende navn skal ikke fortsette en automatisk testverifikasjon.
-- Live-modus har ingen publisher eller konfigurasjonsbryter som kan slå på offentlig publisering.
+En `app.bsky.graph.verification` inneholder kontoens DID (`subject`), handle,
+profilnavn og `createdAt`, og lagres i **utstederens** repository. Organisasjonsnummer
+og kontrollgrunnlag ligger bare i SQLite. Klienter må selv velge å stole på utstederen.
 
-## Begrensninger før produksjon
+Før en ekstern write lagres `pending` med valgt TID (record-nøkkel) og innhold.
+Publisheren leser samme nøkkel før den skriver. Etter tapt svar eller prosessrestart
+avstemmes samme record; gjenforsøk lager ikke duplikater. Endret grunnlag lagrer
+`revoking` før sletting. Avvikende innhold på samme nøkkel krever manuell kontroll.
 
-SQLite-oppsettet og én samtidig operatørkjøring er egnet for demo og et lite grunnlag, ikke en ferdig distribusjon for hele registeret. Det trengs varige jobber, indekserte relasjoner, migrasjoner, retensjon, retry/backoff, revisjonsspor med policyversjon og en entydighetskontroll på tvers av organisasjoner før det skaleres.
+Offentlig utstedelse krever eksplisitt konfigurasjon, valgt `pilot`/`all_matching`,
+komplett og nylig avstemt register og fersk positiv kontroll. Endringer som kommer
+mens et oppslag pågår, gjør kontrollen foreldet og utløser nytt arbeid.
+Tilbaketrekking kan fortsette selv om registeret midlertidig er utilgjengelig.
 
-Den offentlige handle-resolveren kan gi «ingen handle» ved både manglende oppføring og visse oppslagsfeil. Derfor skal dagens live-resultater ikke brukes som automatiske tilbakekallingssignaler. En produksjonsadapter må skille definitive negative svar fra nettverks-/resolverfeil, og håndtere suspendert/deaktivert konto eksplisitt.
+## Nettverksgrenser
 
-Kilder: [AT Protocol identity](https://atproto.com/specs/identity), [handle-spesifikasjon](https://atproto.com/specs/handle), [verifikasjonslexicon](https://github.com/bluesky-social/atproto/blob/main/lexicons/app/bsky/graph/verification.json), [Brreg API-dokumentasjon](https://data.brreg.no/enhetsregisteret/api/docs/index.html).
+Offentlige identitetsoppslag bruker AT Protocol-SDK og SSRF-beskyttet transport
+med HTTPS, kontroll av IP-adresser ved tilkobling, responsgrenser og tidsavbrudd.
+Bare handle-oppslaget tillater HTTPS-omdirigeringer; hvert hopp kontrolleres.
+DID-, profil- og statusoppslag følger ikke omdirigeringer. Utstederinnlogging er
+låst til den konfigurerte PDS-origin og forventet DID.
+
+Fixture bruker faste lokale endepunkter og et offentlig kjent testpassord. Den
+har bare et internt Docker-nett, uten vertsporter eller internettilgang. Appen
+har et separat nett for offentlige oppslag. Lokal UI binder loopback; internettdrift
+krever HTTPS og operatørinnlogging på alle ruter.

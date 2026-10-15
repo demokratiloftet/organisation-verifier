@@ -1,8 +1,10 @@
 import { isValidHandle } from '@atproto/syntax';
+import { getDomain } from 'tldts';
 
 export type Mode = 'fixture' | 'live';
 export type Decision = 'match' | 'no_match' | 'needs_review' | 'unavailable';
 export type Scenario = 'valid' | 'name_changed' | 'website_changed' | 'no_account' | 'unavailable';
+export const policyVersion = 'name-unique-v4';
 export interface Organisation {
   orgnr: string;
   name: string;
@@ -16,6 +18,8 @@ export interface Identity {
   pds: string;
 }
 export interface Check {
+  policyVersion?: string;
+  registrySource?: 'index' | 'live';
   mode: Mode;
   organisation: Organisation;
   candidate?: string;
@@ -26,8 +30,20 @@ export interface Check {
 }
 export type SavedCheck = Check & { id: number };
 
+// Index every registered host, including path-based websites, to detect shared ownership.
+export function registryHost(website: string): string | undefined {
+  try {
+    const url = new URL(website.includes('://') ? website : `https://${website}`);
+    return ['http:', 'https:'].includes(url.protocol) && isValidHandle(url.hostname)
+      ? url.hostname.toLowerCase()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // A registered URL with a path can belong to a tenant on someone else's domain.
-// Keep this first policy conservative; parent-domain fallback needs its own policy.
+// Paths and arbitrary parent-domain fallbacks remain unsupported.
 export function websiteHandle(website: string): string | undefined {
   try {
     const url = new URL(website.includes('://') ? website : `https://${website}`);
@@ -48,6 +64,26 @@ export function websiteHandle(website: string): string | undefined {
   }
 }
 
+export function withoutWww(host: string): string | undefined {
+  if (!host.startsWith('www.')) return;
+  const bare = host.slice(4);
+  // Never strip the registrable label: www.co.uk and www.github.io are accounts,
+  // not aliases for their public/private suffix. PSL is a boundary, not ownership proof.
+  return !bare.startsWith('www.') && isValidHandle(bare) && getDomain(bare, { allowPrivateDomains: true })
+    ? bare
+    : undefined;
+}
+
+// Treat the two supported spellings together for shared-domain checks and events.
+export function hostVariants(host: string): string[] {
+  if (host.startsWith('www.')) {
+    const bare = withoutWww(host);
+    return bare ? [host, bare] : [host];
+  }
+  const www = `www.${host}`;
+  return isValidHandle(www) && withoutWww(www) === host ? [host, www] : [host];
+}
+
 export function claimedHandle(aliases: string[] = []): string | undefined {
   for (const alias of aliases) {
     if (alias.startsWith('at://') && isValidHandle(alias.slice(5))) return alias.slice(5);
@@ -57,6 +93,17 @@ export function claimedHandle(aliases: string[] = []): string | undefined {
 
 const normalizeName = (value: string) =>
   value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('nb-NO');
+
+// The profile may omit one trailing, separate AS from the registered name.
+// This is not fuzzy matching: ASA, A/S, prefixes and brand names stay distinct.
+export function matchesName(registeredName: string, profileName: string): boolean {
+  const registered = normalizeName(registeredName);
+  const profile = normalizeName(profileName);
+  return (
+    !!profile &&
+    (profile === registered || (registered.endsWith(' as') && profile === registered.slice(0, -3)))
+  );
+}
 
 export function decide(
   organisation: Organisation,
@@ -70,6 +117,9 @@ export function decide(
       decision: 'needs_review',
       reason: 'Hjemmesiden er ikke et entydig domene. Sti, port og delt vert krever vurdering.',
     };
+  const registered = websiteHandle(organisation.website);
+  if (!registered || (candidate !== registered && candidate !== withoutWww(registered)))
+    return { decision: 'no_match', reason: 'Kontoens domene samsvarer ikke med hjemmesiden i registeret.' };
   if (!identity)
     return {
       decision: 'no_match',
@@ -77,11 +127,17 @@ export function decide(
     };
   if (identity.handle !== candidate)
     return { decision: 'no_match', reason: 'Handle og DID peker ikke tilbake på hverandre.' };
-  if (!identity.displayName || normalizeName(identity.displayName) !== normalizeName(organisation.name)) {
+  if (!matchesName(organisation.name, identity.displayName)) {
     return {
       decision: 'needs_review',
       reason: 'Profilnavnet avviker fra det registrerte navnet. Automatisk publisering holdes tilbake.',
     };
   }
-  return { decision: 'match', reason: 'Registrert domene, toveis identitet og profilnavn samsvarer.' };
+  return {
+    decision: 'match',
+    reason:
+      candidate === registered
+        ? 'Registrert domene, toveis identitet og profilnavn samsvarer.'
+        : 'Domenet uten www, toveis identitet og profilnavn samsvarer.',
+  };
 }

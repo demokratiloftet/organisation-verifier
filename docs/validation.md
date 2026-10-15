@@ -1,4 +1,64 @@
-# Verifisert 7. oktober 2026
+# Kontrollert 13. oktober 2026
+
+## HTTPS-videresendinger før demo 14. oktober
+
+Handle-oppslaget avviste alle videresendinger selv om
+[AT-protokollen tillater dem](https://atproto.com/specs/handle). En skrivebeskyttet
+prøve fra VPS-en fant fire HTTPS-videresendinger som endte med 404 på well-known-
+adressen. De var tidligere registrert som transportfeil. En femte videresending
+til HTTP ble fortsatt avvist av SDK-ens sikkerhetskontroll.
+
+Handle-oppslaget følger nå videresendinger gjennom SDK-ens kontroller på hvert
+hopp. Åtte sekunders samlet tidsgrense og fetch sin hoppgrense gjelder fortsatt.
+Toveiskontrollen krever fremdeles den opprinnelige handlen. DNS-, TLS-, timeout-
+og serverfeil er fortsatt usikre svar, ikke negative bevis.
+
+50 tester, typekontroll, bygg og formatering bestod med Node 24.17. Nye tester
+kontrollerer redirect-modus, terminale svar og at den faktiske SDK-dispatcheren
+avviser HTTP, egendefinert port, loopback, metadata-IP og localhost før tilkobling.
+Ekte isolert PDS-integrasjon, varig worker og nettverksisolasjon bestod også.
+
+## Tidligere kontroller samme dag
+
+- 32 tester, typekontroll og bygg bestått lokalt. Lokal Node er 26.3.0; CI bruker låst Node 24.17.
+- Oppdatert produksjonsimage (Node 24.17): ekte isolert PDS-integrasjon, varig worker og nettverksisolasjon bestått i separat Compose-prosjekt.
+- 31 av 32 enhetstester bestod også i det minimale produksjonsimaget; TLS-testen krever `openssl`, som bare finnes i utviklings-/CI-miljøet. Den bestod lokalt. Dette er en manglende testavhengighet i runtime-imaget. Hele CI-kjøringen på Node 24.17 bestod senere, inkludert TLS-testen.
+- Ingen kjente moderate eller høyere sårbarheter fra `pnpm audit` i app eller fixture.
+- PSL-regelen er testet med `co.uk`, `com.au`, `github.io` og `s3.amazonaws.com`, inkludert vern mot å hoppe til selve suffixet.
+- GitHub Check bestod for PR #6 og merge-commit `d0c31ca`, inkludert PDS-/worker-integrasjon, nettverksisolasjon og hemmelighetsskann.
+- VPS-import: 1 177 860 enheter. Endringsavstemming og kontrollkø startet med offentlig utstedelse deaktivert.
+- Nettleser: en manuell Devotta-kontroll beholdes når en simulert bakgrunnsoppdatering erstatter historikken.
+- VPS-en svarte med readiness 200 og Devotta ga en positiv manuell kontroll. Offentlig utstedelse er fortsatt deaktivert.
+
+Eldre observasjoner nedenfor er historikk: siden 11. oktober er VPS-en oppgradert,
+HTTPS/operatørinnlogging innført og Devotta har fått registrert hjemmeside og positiv kontroll.
+Gjeldende restliste står i [roadmap.md](roadmap.md).
+
+## Verifisert 11. oktober 2026
+
+Automatikken er kontrollert lokalt. Den eksisterende VPS-demoen er ikke oppgradert,
+og offentlig publisering er fortsatt avslått.
+
+| Kontroll                                  | Resultat                                                                                                                               |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript, 25 automatiske tester og bygg | Bestått; også kjørt i appens Node 24.17.0-container                                                                                    |
+| Ekte isolert PDS                          | Eksisterende integrasjon og ny worker-integrasjon bestått: publisering, gjentakelse etter SQLite-restart og tilbaketrekking            |
+| Varig arbeid                              | Importavbrudd/gjenopptak, migrasjon, lease/retry, hendelser under pågående jobb, cursor, Jetstream-gap og backup/restore testet        |
+| Publiseringsgrenser                       | Opt-in, pilotliste, versjonert policy, fast utsteder-DID/origin og sperre mot syntetiske records testet                                |
+| Kildeutfall                               | DNS-/HTTP-feil holdes usikre; utløp og tilbaketrekking ved gammel registerstrøm testet                                                 |
+| Offisiell Brreg-fil                       | 1 177 715 enheter importert, 114 124 kontroller kølagt; 183,8 sekunder inkludert nedlasting, maksimal RSS 524 MiB på lokal Node 26.3.0 |
+| Offentlig identitetsoppslag               | `atproto.com` løst toveis; kun lesing                                                                                                  |
+| Pilotkandidat                             | DEVOTTA AS (`922669708`) finnes, men mangler registrert hjemmeside og gir derfor ingen positiv verifikasjon                            |
+| Lokal forhåndsvisning                     | Jetstream v2 koblet til, `/ready` svarte 200, operatørsiden kontrollert i nettleser uten JavaScript-feil                               |
+| Isolasjon og hygiene                      | Fixture uten offentlig TCP/DNS, ingen fixture-porter, non-root/read-only; dependency-audit, formatering og workflow-kontroll bestått   |
+
+Importmålingen omfatter ikke nettverkskontroll av hele registeret. En reell
+utstederkonto, positiv målorganisasjon, offentlig akseptansetest, VPS-utrulling og
+ekstern backup/varsling gjenstår. Se [antakelser og driftsoppsett](automation.md).
+Etter import ble første side fra Brregs faktiske endringsstrøm hentet og lagret
+med nåværende enheter og cursor. Hele endringskøen ble ikke avstemt i denne testen.
+
+## Tidligere demonstrasjon: 7. oktober 2026
 
 Gjennomført på macOS med Node 24.17 og Docker, og på prosjektets Linux VPS.
 
@@ -18,4 +78,71 @@ Gjennomført på macOS med Node 24.17 og Docker, og på prosjektets Linux VPS.
 
 [Skjermopptaket](media/demo-flow.webm) viser den faktiske demoen. PDS-integrasjonstesten sjekker serverens records, ikke bare statusen i brukergrensesnittet.
 
-Dette er ikke en produksjonsgodkjenning: full registerbatch, varige bakgrunnsjobber, Jetstream, full feiltaksonomi, offentlig utsteder og tillitspolicy står fortsatt på [oppgavelisten](roadmap.md).
+Dette var en demonstrasjon av publiseringsflyten. Status for videre implementasjon
+og gjenstående driftsavklaringer står i [oppgavelisten](roadmap.md).
+
+## Effektiv automatikk, 13. oktober 2026
+
+Før endringen viste VPS-en 1 178 294 registerenheter og omtrent 120 700 jobber i kø,
+inkludert 6 555 DID-oppslag. Av 113 876 enheter med registrert host hadde bare 423
+minst én fullført kontroll. Siste times historikk hadde 1 578 utilgjengelige svar,
+117 negative svar (109 uten hjemmeside), to vurderingssaker og tre positive
+kontroller. Det er **kontrollforsøk**, ikke unike verifikasjoner. Retry-prioritering
+og seriell behandling hindret førstegangsskanningen i å komme videre.
+
+Lokal reproducerbar måling med `node dist/scripts/benchmark-worker.js`: 16 jobber,
+1,2 sekunders simulert kildelatens, ekte SQLite-kø/leases, ingen ekstern trafikk.
+Én arbeider brukte 20 086 ms; fire brukte 5 751 ms (3,49 ganger gjennomløpet).
+Dette sammenligner den nye poolens innstillinger, ikke hele den gamle tjenesten
+eller offentlig API-kapasitet.
+
+Regresjonstester dekker avgrenset samtidighet, uavhengig registerpoll, tømming ved
+stopp, rettferdig kø, registry-cache/fersk positiv kontroll, relevant filtrering
+og deduplisering av endringer, Brreg 410, forskjellige retry-grenser og utdaterte
+resultater. En domenekonflikt som oppstår under publisherens remote-lesing hindrer
+ny put. Ekte isolert PDS bekrefter publisering, omkjøring uten duplikat, restart og
+tilbaketrekking; fixture-isolasjonen er også kontrollert.
+
+Statuspanelet er inspisert i Chromium med syntetiske køtall; norske tusenskiller,
+køtyper og tydelig merking av at gjennomløp også inkluderer mislykkede forsøk.
+Ingen nettleserfeil. Ingen offentlig prøvepublisering ble brukt i testene.
+
+Scheduler-spørringen ble også målt på en disponibel kopi av VPS-backupen med
+1 178 295 enheter, i en container uten nettverk. Den nye dekkende delindeksen
+returnerte samme 112 942 kandidater som den gamle: 43–67 ms over tre målinger,
+mot 191–817 ms med gammel indeks. Tallene inkluderer materialisering av resultatet
+og påvirkes av cache/GC; `EXPLAIN QUERY PLAN` bekrefter dekkende indeks. Kopien
+ble slettet med containeren; produksjonsdatabasen ble ikke brukt som testdatabase.
+
+## Gjennomgang før offentlig repository — 14. oktober 2026
+
+- Gått gjennom kildeadaptere, kontrollpolicy, worker, lagring, publisering,
+  operatørtilgang og deploy-konfigurasjon. Beholdt eksisterende moduldeling.
+- Forenklet lokal oppstart til Docker Compose og forklart datahentingen i README.
+  Oppdatert arkitektur og motstridende beskrivelser av internettoppsett/utstedelse.
+- Rå kildefeil lagres ikke lenger i kontrollresultater eller vises til operatøren.
+  Regresjonstesten dekker både Brreg- og identitetsfeil med sensitive request-detaljer.
+- Node 24.17.0 / pnpm 11.8.0: `pnpm check` bestått med 63 tester, samt formatering
+  og separat typekontroll av fixture. Audit av app og fixture uten kjente sårbarheter.
+- Nybygd lokal app: ekte PDS-integrasjon, worker-integrasjon og nettverksisolasjon bestått.
+- Gitleaks 8.30.1: ingen funn i versjonerte filer eller de 43 committene i alle
+  hentede Git-refs før denne endringen. Separat skanning av GitHub issue-/PR-tekster,
+  issue-/review-kommentarer og release-metadata ga heller ingen funn.
+- Dette er en kode- og lokal testgjennomgang. Produksjonsutrulling og endring av
+  repository-synlighet inngår ikke i kontrollene.
+
+## Navnepolicy name-unique-v4 — 14. oktober 2026
+
+- 71 tester bestått med Node 24.17.0 og pnpm 11.8.0, inkludert MDG, Aftenposten og
+  Morgenbladet, avgrensning av AS-unntaket, tvetydige navn, path-baserte enheter,
+  navneendring på delt domene, tilbaketrekking, endringer under oppslag/publisering
+  og engangs kølegging ved policyoppgradering.
+- Typekontroll, bygg, Prettier og begge avhengighetsauditer bestått. Nybygget app
+  bestod ekte isolert PDS-integrasjon, worker med databasegjenåpning og nettverksisolasjon.
+- Skrivebeskyttet forhåndskontroll kl. 21.13 UTC: 16 registerrader fra produksjon
+  for mdg.no, aftenposten.no og morgenbladet.no ble kopiert til en lokal minnedatabase.
+  Registeret var komplett og nylig avstemt. Den nye worker-koden hentet ferske
+  Brreg-/identitetsdata og ga `match` for 971377461, 890412882 og 866948542,
+  inkludert entydig navn blant domenets organisasjoner. Ingen publisering ble gjort.
+- Produksjonsutrulling må skje etter PR-godkjenning og grønn CI. Forhåndskontrollen
+  ovenfor dokumenterer ny policy, ikke at den allerede kjører på VPS-en.

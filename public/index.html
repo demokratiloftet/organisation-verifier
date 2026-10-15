@@ -9,132 +9,193 @@
   </head>
   <body>
     <header>
-      <a class="brand" href="/" aria-label="Loftet, startside"
-        ><span class="mark">L</span> demokratiloftet<span class="slash">/</span
-        ><span class="product">verifikasjon</span></a
-      ><span class="environment"><i></i> LOFT-76 · utviklingsdemo</span>
+      <a class="brand" href="/" aria-label="Loftet, startside"><span class="mark">L</span> demokratiloftet</a>
+      <span class="muted">Verifikasjon</span>
     </header>
     <main>
       <section class="intro">
-        <div>
-          <p class="eyebrow">ENHETSREGISTERET × AT PROTOCOL</p>
-          <h1>Fra register til<br /><em>verifisert konto.</em></h1>
-          <p class="lead">
-            En etterprøvbar kobling mellom en organisasjon,<br class="desktop" />
-            domenet i registeret og en eksisterende atproto-konto.
-          </p>
-        </div>
-        <aside>
-          <span class="note-number">01 — FORMÅL</span>
-          <p>Vi kontrollerer <strong>domenetilknytning.</strong></p>
-          <p>Dette beviser ikke hvem som har fullmakt til å representere bedriften.</p>
-        </aside>
+        <h1>Organisasjonsverifikasjon.</h1>
+        <p class="lead">Se verifiserte organisasjoner og kontroller koblingen mellom domene og konto.</p>
+        <p class="guide-link"><a href="/?veiledning">Slik klargjør du kontoen for verifikasjon →</a></p>
       </section>
+      <section id="verified-panel" class="verified-panel" aria-labelledby="verified-title">
+        <div class="section-heading">
+          <h2 id="verified-title">Verifiserte organisasjoner</h2>
+          <span id="verified-count" class="badge match">Laster …</span>
+        </div>
+        <p class="reason">
+          Aktive, publiserte verifikasjoner fra vår offentlige utsteder. Bekrefter domenetilknytning,
+          kontoidentitet og navnesamsvar.
+        </p>
+        <p class="reason">
+          «Se kontokobling» viser hvor kontoen er lagret og hvordan domenet peker til konto-ID-en. Bluesky er
+          en valgfri appvisning av kontoen.
+        </p>
+        <p><a href="#diagnostics-panel">Mangler en organisasjon? Se kontroller og årsaker →</a></p>
+        <form id="verified-search" role="search">
+          <label for="verified-query">Finn en organisasjon</label>
+          <div class="form-row">
+            <input
+              id="verified-query"
+              type="search"
+              maxlength="100"
+              placeholder="Navn, org.nr. eller domene"
+            />
+            <button class="primary" type="submit">Søk i listen</button>
+          </div>
+        </form>
+        <p id="verified-message" class="reason" role="status" aria-live="polite">Henter verifikasjoner …</p>
+        <div
+          id="verified-table-wrap"
+          class="table-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="Verifiserte organisasjoner, rull sidelengs på små skjermer"
+          hidden
+        >
+          <table class="verified-table">
+            <caption class="sr-only">
+              Organisasjoner med aktiv publisert verifikasjon
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Organisasjon</th>
+                <th scope="col">Konto</th>
+                <th scope="col">Sist bekreftet</th>
+                <th scope="col">Verifikasjon</th>
+              </tr>
+            </thead>
+            <tbody id="verified-rows"></tbody>
+          </table>
+        </div>
+        <p class="mobile-table-hint muted">Rull tabellen sidelengs for dato og verifikasjon.</p>
+        <nav id="verified-pagination" class="pagination" aria-label="Sider i organisasjonslisten" hidden>
+          <button id="verified-prev" type="button">← Forrige</button>
+          <span id="verified-page" class="muted"></span>
+          <button id="verified-next" type="button">Neste →</button>
+        </nav>
+        <p class="muted">
+          Listen oppdateres automatisk. Tilbaketrukne verifikasjoner og records med publiseringsfeil vises
+          ikke. «Se record» åpner den offentlige bekreftelsen som JSON.
+        </p>
+      </section>
+      <section id="diagnostics-panel" class="verified-panel" aria-labelledby="diagnostics-title">
+        <h2 id="diagnostics-title">Feilsøk verifisering</h2>
+        <p class="reason">
+          Se lagrede kontroller, hva som stoppet dem og status for publisering. Oppslag her endrer ingenting
+          og gir ingen unntak fra verifiseringsreglene.
+        </p>
+        <form id="diagnostics-search" role="search">
+          <label for="diagnostics-query">Organisasjonsnummer eller registrert domene</label>
+          <div class="form-row">
+            <input
+              id="diagnostics-query"
+              type="search"
+              maxlength="100"
+              placeholder="991965726 eller multiarc.no"
+            />
+            <button class="primary" type="submit">Se kontroller</button>
+          </div>
+          <small
+            >Bruk hele domenet eller organisasjonsnummeret. Tomt søk viser siste saker til oppfølging.</small
+          >
+        </form>
+        <p id="diagnostics-message" class="reason" role="status" aria-live="polite"></p>
+        <div id="diagnostics-results"></div>
+        <p class="muted">
+          Historikken beholdes i opptil 90 dager. Ingen konto funnet er normalt, ikke en teknisk feil.
+          Planlagt kontrolltid er ikke en garanti; kø og tilgjengelighet kan gi forsinkelser.
+        </p>
+      </section>
+      <dialog id="account-dialog" aria-labelledby="account-title">
+        <div class="section-heading">
+          <h2 id="account-title">Kontokobling</h2>
+          <form method="dialog"><button class="primary" aria-label="Lukk kontokobling">Lukk</button></form>
+        </div>
+        <p id="account-state" class="reason" role="status" aria-live="polite"></p>
+        <div id="account-evidence"></div>
+        <button id="account-reload" class="primary" type="button">Hent på nytt</button>
+      </dialog>
       <nav class="tabs" aria-label="Datakilde">
-        <button id="fixture-tab" class="tab active" aria-pressed="true">
-          Demonstrasjon <span>isolert PDS</span></button
-        ><button id="live-tab" class="tab" aria-pressed="false">Brreg <span>live oppslag</span></button>
+        <button id="fixture-tab" class="tab active" aria-pressed="true">Prøv demo</button>
+        <button id="live-tab" class="tab" aria-pressed="false">Søk i Brreg</button>
       </nav>
       <section id="fixture-panel" class="control-panel">
-        <div>
-          <p class="eyebrow">KONTROLLERT TESTMILJØ</p>
-          <h2>Samme flyt. Ekte atproto-records.</h2>
-          <p>
-            Fjordverk AS er fiktiv. Kontoer, DID-katalog og publisering er isolert fra det offentlige
-            nettverket.
-          </p>
-        </div>
         <form id="fixture-form">
           <label for="scenario">Velg en situasjon</label>
           <div class="form-row">
-            <select id="scenario">
-              <option value="valid">Alt stemmer → publiser</option>
-              <option value="name_changed">Profilnavnet endres → trekk tilbake</option>
-              <option value="website_changed">Hjemmesiden endres → kontroller på nytt</option>
+            <select id="scenario" aria-describedby="fixture-help">
+              <option value="valid">Alt stemmer</option>
+              <option value="name_changed">Profilnavnet endres</option>
+              <option value="website_changed">Hjemmesiden endres</option>
               <option value="no_account">Ingen konto på domenet</option>
-              <option value="unavailable">Midlertidig nettverksfeil</option></select
-            ><button class="primary" type="submit">Kjør kontroll <span aria-hidden="true">↗</span></button>
+              <option value="unavailable">Midlertidig nettverksfeil</option>
+            </select>
+            <button class="primary" type="submit">Kjør kontroll</button>
           </div>
-          <small>Gjenta «Alt stemmer» for å se at recorden ikke dupliseres.</small>
+          <small id="fixture-help">Fiktiv bedrift. Publisering skjer bare i testmiljøet.</small>
         </form>
       </section>
       <section id="live-panel" class="control-panel" hidden>
-        <div>
-          <p class="eyebrow">OFFENTLIGE KILDER · KUN LESING</p>
-          <h2>Kontroller en organisasjon fra Brreg.</h2>
-          <p>
-            Vi henter hjemmesiden fra API-et, finner en eventuell konto og kontrollerer identiteten begge
-            veier.
-          </p>
-        </div>
         <form id="live-form">
           <label for="orgnr">Organisasjonsnummer</label>
           <div class="form-row">
             <input
               id="orgnr"
-              value="974760673"
               inputmode="numeric"
               pattern="[0-9]{9}"
               maxlength="9"
               required
               aria-describedby="live-help"
-            /><button class="primary" type="submit">
-              Hent og kontroller <span aria-hidden="true">↗</span>
-            </button>
+            />
+            <button class="primary" type="submit">Kjør kontroll</button>
           </div>
-          <small id="live-help">Eksempel: Registerenheten i Brønnøysund. Ingen offentlig publisering.</small>
+          <small id="live-help">Henter offentlige opplysninger. Publiserer ingenting.</small>
         </form>
       </section>
       <p id="notice" role="status" aria-live="polite" hidden></p>
-      <section class="process" aria-label="Kontrollflyt">
-        <div>
-          <span>01</span><strong>Register</strong><small id="step-registry">Hjemmeside fra Brreg</small>
-        </div>
-        <b aria-hidden="true">→</b>
-        <div><span>02</span><strong>Identitet</strong><small id="step-identity">Handle ↔ DID</small></div>
-        <b aria-hidden="true">→</b>
-        <div>
-          <span>03</span><strong>Vurdering</strong><small id="step-decision">Domene og profilnavn</small>
-        </div>
-        <b aria-hidden="true">→</b>
-        <div>
-          <span>04</span><strong>Publisering</strong
-          ><small id="step-publish">Record på utstederens PDS</small>
-        </div>
-      </section>
-      <section class="results">
+      <section class="results" aria-label="Resultat">
         <div class="section-heading">
-          <div>
-            <p class="eyebrow">KONTROLLGRUNNLAG</p>
-            <h2 id="result-title">Klar for første kontroll</h2>
-          </div>
+          <h2 id="result-title">Klar for kontroll</h2>
           <span id="decision" class="badge">Ikke kjørt</span>
         </div>
-        <p id="reason" class="reason">Velg en situasjon og følg hva som skjer i hvert ledd.</p>
-        <div id="evidence" class="evidence"></div>
+        <p id="reason" class="reason">Velg en situasjon og kjør kontrollen.</p>
+        <p id="account-help" class="reason" hidden>
+          Ingen konto funnet er et normalt resultat. Når domenet kobles til en konto, kan organisasjonen
+          kontrolleres på nytt. <a href="/?veiledning">Se veiledningen for DNS og well-known.</a>
+        </p>
         <div id="record-section" hidden>
           <div class="record-heading">
-            <h3>Verifikasjon på test-PDS</h3>
+            <h3 id="record-title">Verifikasjon i testmiljøet</h3>
             <span id="publication-status" class="badge"></span>
           </div>
           <p id="publication-note"></p>
-          <details>
-            <summary>Vis record og tekniske detaljer</summary>
-            <pre id="record"></pre>
-          </details>
         </div>
+        <details id="check-details" hidden>
+          <summary>Vis detaljer</summary>
+          <div id="evidence" class="evidence"></div>
+          <pre id="record" hidden></pre>
+        </details>
       </section>
-      <section class="history">
-        <div class="section-heading">
-          <h2>Siste kontroller</h2>
-          <span id="history-count" class="muted">0 kjøringer</span>
-        </div>
+      <details class="secondary" id="history-panel" hidden>
+        <summary>Siste kontroller <span id="history-count" class="muted"></span></summary>
         <div id="history"></div>
+      </details>
+      <section id="automation-panel" hidden>
+        <details class="secondary">
+          <summary>Automatikk <span id="automation-mode" class="muted"></span></summary>
+          <p id="automation-summary"></p>
+          <p id="automation-throughput"></p>
+          <p id="automation-progress" class="muted"></p>
+          <p class="muted">
+            Hele registeret importeres én gang. Deretter hentes endringer. Domener og kontoer kontrolleres i
+            en egen kø; et importert register betyr ikke at alle kontoer er kontrollert. Ingen konto funnet er
+            ikke en teknisk feil. Nye domenekoblinger kan utløse ny kontroll.
+          </p>
+        </details>
+        <p id="automation-errors" class="muted" role="status" hidden></p>
       </section>
-      <footer>
-        <span>LOFT-76 / Organisation verifier</span
-        ><span>Ingen brukerregistrering · Ingen e-postverifisering · Eksisterende atproto-kontoer</span>
-      </footer>
+      <footer>Kontrollerer domenetilknytning, ikke juridisk fullmakt.</footer>
     </main>
   </body>
 </html>

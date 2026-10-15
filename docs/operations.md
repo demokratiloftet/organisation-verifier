@@ -22,39 +22,20 @@ docker compose up -d --build --no-deps app
 
 ## VPS
 
-Tjenesten ligger separat i `/root/organisation-verifier` på prosjektets VPS. Den benytter eget Compose-prosjekt, eget volum og egne nett. Det eksisterende `server-infrastructure`-oppsettet og domenene berøres ikke.
+**14. oktober 2026:** Verifikatoren publiserer fra Eurosky med `ISSUANCE_SCOPE=all_matching`.
+Gjeldende image og omfang finnes i `/var/lib/loftet-deploy/organisation-verifier/current.json`.
+GitHub-autodeploy (`DEMO_DEPLOY_ENABLED`) er fortsatt avslått etter den kontrollerte
+utrullingen. Ikke bygg den eldre checkouten i `/root/organisation-verifier`.
+Se [akseptanse og rollback](automatic-issuance-2026-10-14.md).
 
-Webappen på VPS-en er bare tilgjengelig over loopback. For demonstrasjon fra egen maskin må lokal app på samme port stoppes først:
+Operatørsiden er [verifikasjon.demokratiloftet.no](https://verifikasjon.demokratiloftet.no/).
+Se [tilgang og HTTPS](internet.md). Oppsettet er miljøspesifikt; lokal Compose
+skal ikke kopieres over produksjonskonfigurasjonen.
 
-```sh
-docker compose stop app
-ssh -N -L 127.0.0.1:3012:127.0.0.1:3012 root@187.124.129.149
-```
-
-La SSH-terminalen stå åpen. Åpne **http://127.0.0.1:3012**. SSH er tilgangskontrollen for denne operatørdemoen; det finnes ingen innlogging i appen. Ikke bind porten til `0.0.0.0` eller sett en offentlig proxy foran operatørendepunktene.
-
-Under oppsettet er det startet en bakgrunnstunnel fra denne arbeidsmaskinen med kontrollsocket `.runtime/vps.sock`. Demo-adressen peker dermed på VPS-en. Før du starter appen lokalt igjen, avslutt tunnelen fra repo-mappen:
-
-```sh
-ssh -S .runtime/vps.sock -O exit root@187.124.129.149
-pnpm demo:up
-```
-
-På VPS-en:
-
-```sh
-cd /root/organisation-verifier
-docker compose ps
-docker compose exec -T app node dist/test/integration.js
-docker compose logs --tail=50 app fixture
-```
-
-Vanlige appoppdateringer deployes automatisk etter grønne kontroller på `main`.
-Den kjørende koden bygges fra en separat release under
-`/var/lib/loftet-deploy/organisation-verifier/releases/`; `current.json` i
-deploy-katalogen angir commit og image. `/root/organisation-verifier` eier fortsatt
-godkjent Compose-oppsett. Ikke bygg denne eldre kildekopien på nytt for en vanlig
-appoppdatering.
+Kjørende kode bygges fra en separat release under
+`/var/lib/loftet-deploy/organisation-verifier/releases/`. `/root/organisation-verifier`
+eier det godkjente Compose-oppsettet. Ved oppdatering beholdes eksisterende volum,
+nett, HTTPS og utstederinnstillinger.
 
 Fixture- eller Compose-endringer krever en separat driftsutrulling med automatisk
 deploy satt på pause, backup og gjennomgått kildekode. Ikke kopier lokale data,
@@ -67,15 +48,16 @@ oppretter et nytt testnett neste gang.
 - `docker compose restart app` beholder både historikk og testnett. Neste kontroll finner igjen eksisterende record.
 - En restart av **fixture** lager nye kontoer og DIDs. Gamle utstederrecords hører til forrige testnett og vises ikke som aktive i det nye. Historikken beholdes for inspeksjon.
 - `docker compose down` beholder SQLite-volumet. Unngå `down -v` med mindre du uttrykkelig ønsker å slette historikken.
-- En feil i et PDS-kall lagres som publiseringsfeil; kjør kontrollen på nytt for avstemming ved samme nøkkel. Det er ingen automatisk scheduler i denne demoversjonen.
+- En feil i et PDS-kall lagres som publiseringsfeil; kjør kontrollen på nytt for avstemming ved samme nøkkel. Standarddemoen har ingen scheduler; den valgfrie bakgrunnstjenesten håndterer automatiske gjenforsøk. Se [automatikk](automation.md).
 
-Dette er et disponibelt testnett, ikke en backup-/migrasjonsløsning for en produksjons-PDS. Produksjonsbackup, overvåking, retensjon og rollestyrt operatørtilgang er egne oppgaver.
+Fixture er et disponibelt testnett. For den varige verifikatordatabasen, se
+[backup, restore, retensjon og overvåking](automation.md).
 
 ## Automatisk appoppdatering
 
-Etter grønne `Check`-kontroller på `main` oppdaterer GitHub Actions bare
+Når `DEMO_DEPLOY_ENABLED=true`, vil grønne `Check`-kontroller på `main` oppdatere bare
 app-containeren via den begrensede SSH-mottakeren i infrastrukturrepoet.
-`DEMO_DEPLOY_ENABLED=true` er aktivert og testet på VPS-en. Workflow-tokenet har bare lesetilgang
+Dette er avslått i driftsstatusen ovenfor. Workflow-tokenet har bare lesetilgang
 til dette repoet og lagres ikke på VPS-en. SSH-nøkkelen har ingen vanlig shell.
 
 SQLite-volumet beholdes. En mislykket helsesjekk bytter tilbake til forrige image.
