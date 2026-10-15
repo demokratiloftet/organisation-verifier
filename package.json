@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@atproto-labs/fetch-node": "0.4.0",
-    "@atproto/api": "0.24.0",
+    "@atproto/api": "0.24.3",
     "@atproto/common": "0.8.5",
     "@atproto/identity": "0.5.16",
     "@atproto/syntax": "0.7.6",

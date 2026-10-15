@@ -12,8 +12,8 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@atproto/api':
-        specifier: 0.24.0
-        version: 0.24.0
+        specifier: 0.24.3
+        version: 0.24.3
       '@atproto/common':
         specifier: 0.8.5
         version: 0.8.5
@@ -60,8 +60,8 @@ packages:
     resolution: {integrity: sha512-n67jCcrC+ouAeO10cWkpPzzLMlDi/lDCU30Us+LGqhOPhT6c4t5ASdBLQi9W3jUQtRzQBt3G9zipF+xKWNvVbw==}
     engines: {node: '>=22'}
 
-  '@atproto/api@0.24.0':
-    resolution: {integrity: sha512-K2x5CCiS+ZLxcdrrBXov53Ib+Lql4MnjEFmJbXaXT494t4tUN++7j+mC3ZfVZFyX1i7RAb9i53dE4auX9bwBKA==}
+  '@atproto/api@0.24.3':
+    resolution: {integrity: sha512-FVxai777GMdFN9CJETNnIoPnIvQ9h3Z0NixcxIMES0wYQz/AzU1x8cvj5SZdvKKWqJ9RGJ75FeSRqkPeHx/e3g==}
     engines: {node: '>=22'}
 
   '@atproto/common-web@0.5.14':
@@ -656,7 +656,7 @@ snapshots:
 
   '@atproto-labs/pipe@0.2.4': {}
 
-  '@atproto/api@0.24.0':
+  '@atproto/api@0.24.3':
     dependencies:
       '@atproto/common-web': 0.5.14
       '@atproto/lexicon': 0.7.16
