@@ -31,7 +31,7 @@
     "@atproto/api": "0.24.0",
     "@atproto/common": "0.8.5",
     "@atproto/identity": "0.5.16",
-    "@atproto/syntax": "0.7.6",
+    "@atproto/syntax": "0.7.7",
     "@streamparser/json-node": "0.0.26",
     "fastify": "5.12.5",
     "tldts": "7.4.18"
